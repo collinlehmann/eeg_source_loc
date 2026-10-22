@@ -1,5 +1,5 @@
 function tests = test_noise_covariance()
-%TEST_NOISE_COVARIANCE Synthetic tests for covariance routes and PSD behavior.
+%TEST_NOISE_COVARIANCE Synthetic tests for canonical covariance configuration.
 rng(7);
 X = randn(8,1500);
 data = struct('data',X,'label',arrayfun(@(k)sprintf('E%d',k),1:8,'UniformOutput',false));
@@ -20,10 +20,18 @@ tests.diagonal = norm(Nd-diag(diag(Nd)),'fro') < 1e-12;
 
 cfg.paradigm = 'task';
 cfg.noise.route = 'baseline';
-cfg.baseline = [-0.2 0.2];
+cfg.noise.baseline = [-0.2 0.2];
 data.trial = {X}; data.time = {linspace(-1,1,size(X,2))};
 [Nb,~] = eegsl.noise.estimate_noise_cov(cfg,data,[],struct());
 tests.baseline_shape = isequal(size(Nb),[8 8]);
+
+% Legacy top-level input remains accepted but emits a deprecation warning.
+legacy = rmfield(cfg,'noise');
+legacy.paradigm = 'task';
+legacy.noise = struct('route','baseline');
+legacy.baseline = [-0.2 0.2];
+[Nlegacy,legacyInfo] = eegsl.noise.estimate_noise_cov(legacy,data,[],struct());
+tests.legacy_equivalent = isequal(size(Nlegacy),[8 8]) && legacyInfo.legacy_migration.baseline;
 
 tests.all_passed = all(structfun(@(x)logical(x),tests));
 if ~tests.all_passed, error('eegsl:Tests:NoiseFailure','Noise covariance test failed.'); end
