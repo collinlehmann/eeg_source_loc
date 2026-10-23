@@ -5,6 +5,7 @@ if ~isstruct(cfg), error('eegsl:Config:Type','cfg must be a struct.'); end
 cfg = merge_struct(eegsl.default_config(),cfg);
 
 cfg.schema_version = require_text(cfg.schema_version,'schema_version');
+if ~isempty(cfg.seed), cfg.seed = nonnegative_integer(cfg.seed,'seed'); end
 cfg.paradigm = normalize_enum(cfg.paradigm,'paradigm',{'task','resting'},true);
 cfg.subject_id = optional_text(cfg.subject_id,'subject_id');
 cfg.session_id = optional_text(cfg.session_id,'session_id');
@@ -76,6 +77,36 @@ if cfg.cache.enabled && isempty(cfg.cache.root)
 end
 cfg.progress.enabled = require_logical(cfg.progress.enabled,'progress.enabled');
 cfg.progress.interval_seconds = nonnegative_scalar(cfg.progress.interval_seconds,'progress.interval_seconds');
+
+cfg.synthetic.n_channels = positive_integer(cfg.synthetic.n_channels,'synthetic.n_channels');
+cfg.synthetic.n_sources = positive_integer(cfg.synthetic.n_sources,'synthetic.n_sources');
+cfg.synthetic.n_time = positive_integer(cfg.synthetic.n_time,'synthetic.n_time');
+cfg.synthetic.sensor_orientation = normalize_enum(cfg.synthetic.sensor_orientation, ...
+    'synthetic.sensor_orientation',{'channels_by_samples','samples_by_channels'},false);
+cfg.synthetic.source_orientation = normalize_enum(cfg.synthetic.source_orientation, ...
+    'synthetic.source_orientation',{'components_by_samples','samples_by_components'},false);
+cfg.synthetic.noise_std = nonnegative_scalar(cfg.synthetic.noise_std,'synthetic.noise_std');
+if ~isempty(cfg.synthetic.snr_db), cfg.synthetic.snr_db = positive_scalar(cfg.synthetic.snr_db,'synthetic.snr_db'); end
+if ~isempty(cfg.synthetic.seed), cfg.synthetic.seed = nonnegative_integer(cfg.synthetic.seed,'synthetic.seed'); end
+if ~isfield(cfg.synthetic,'normalization') || ~isstruct(cfg.synthetic.normalization)
+    cfg.synthetic.normalization = struct('enabled',false);
+end
+cfg.synthetic.normalization.enabled = require_logical(cfg.synthetic.normalization.enabled,'synthetic.normalization.enabled');
+if ~isfield(cfg.synthetic,'active_sources') || isempty(cfg.synthetic.active_sources)
+    error('eegsl:Config:SyntheticActiveSources','synthetic.active_sources must contain at least one source index.');
+end
+if ~(isnumeric(cfg.synthetic.active_sources) && isvector(cfg.synthetic.active_sources))
+    error('eegsl:Config:SyntheticActiveSources','synthetic.active_sources must be a numeric vector.');
+end
+cfg.synthetic.active_sources = unique(round(double(cfg.synthetic.active_sources(:)')));
+if any(cfg.synthetic.active_sources < 1) || any(cfg.synthetic.active_sources > cfg.synthetic.n_sources)
+    error('eegsl:Config:SyntheticActiveSourceRange','synthetic.active_sources must be within [1, synthetic.n_sources].');
+end
+cfg.synthetic.deep_source_index = positive_integer(cfg.synthetic.deep_source_index,'synthetic.deep_source_index');
+if cfg.synthetic.deep_source_index > cfg.synthetic.n_sources
+    error('eegsl:Config:SyntheticDeepSourceRange','synthetic.deep_source_index must be within [1, synthetic.n_sources].');
+end
+cfg.synthetic.cache_prefix = require_text(cfg.synthetic.cache_prefix,'synthetic.cache_prefix');
 end
 
 function out = merge_struct(base,override)
@@ -91,6 +122,7 @@ function x=require_logical(x,name), if ~(islogical(x)&&isscalar(x)), error('eegs
 function x=positive_scalar(x,name), if ~(isnumeric(x)&&isscalar(x)&&isfinite(x)&&x>0), error('eegsl:Config:Positive','%s must be positive.',name); end; x=double(x); end
 function x=nonnegative_scalar(x,name), if ~(isnumeric(x)&&isscalar(x)&&isfinite(x)&&x>=0), error('eegsl:Config:Nonnegative','%s must be nonnegative.',name); end; x=double(x); end
 function x=positive_integer(x,name), x=positive_scalar(x,name); if x~=round(x), error('eegsl:Config:Integer','%s must be an integer.',name); end; x=round(x); end
+function x=nonnegative_integer(x,name), x=nonnegative_scalar(x,name); if x~=round(x), error('eegsl:Config:Integer','%s must be an integer.',name); end; x=round(x); end
 function x=bounded_scalar(x,name,lo,hi), x=nonnegative_scalar(x,name); if x<lo||x>hi, error('eegsl:Config:Bounds','%s must be between %g and %g.',name,lo,hi); end; end
 function validate_square_matrix(x,name), if ~(isnumeric(x)&&ismatrix(x)&&size(x,1)==size(x,2)&&all(isfinite(x(:)))), error('eegsl:Config:Matrix','%s must be a finite square numeric matrix.',name); end; end
 function validate_window(x,name), if ~(isnumeric(x)&&numel(x)==2&&all(isfinite(x))&&x(1)<x(2)), error('eegsl:Config:Window','%s must be [start end] with start < end.',name); end; end
