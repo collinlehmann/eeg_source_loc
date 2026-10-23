@@ -8,6 +8,7 @@ The toolbox is organized as a MATLAB package rooted at `matlab/+eegsl`.
 - `+noise`: paradigm-aware covariance estimation, including the dependency-free uniform-null geometry and sigma-max search.
 - `+inverse`: frozen build/apply interface. wMNE is implemented as a transparent baseline; other methods fail clearly until their numerical validation is added.
 - `+normalization`: optional frozen Michel-Brunet-style post-normalization.
+- `+pipeline`: orchestration entrypoints for deterministic, dependency-light validation workflows.
 - `+petra`: PETRA fallback/provenance seam. External registration and segmentation are not silently emulated.
 
 All precompute functions return provenance metadata. Apply functions are deliberately pure projections or elementwise transforms and do not log, estimate covariance, or select parameters.
