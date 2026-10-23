@@ -13,6 +13,14 @@ cfg.synthetic.seed = 42;
 result = eegsl.run_synthetic_validation(cfg);
 ```
 
+Or run the one-command smoke helper:
+
+```matlab
+addpath(genpath('matlab'));
+addpath('tests');
+result = run_synthetic_validation_smoke();
+```
+
 `eegsl.run_synthetic_validation` runs deterministic stages for:
 
 1. synthetic source/electrode geometry;
