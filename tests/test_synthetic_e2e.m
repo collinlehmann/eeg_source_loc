@@ -35,8 +35,6 @@ r4 = eegsl.validate_synthetic_e2e(cfg);
 tests.scalar_dims = size(r4.inverse.estimate,1) == cfg.synthetic.n_sources && ...
     isequal(size(r4.synthetic.sensor_data),[cfg.synthetic.n_samples cfg.synthetic.n_channels]);
 
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed
-    error('eegsl:Tests:SyntheticE2EFailure','Synthetic E2E test failed.');
-end
+assert_test_checks(tests,'test_synthetic_e2e');
+tests.all_passed = true;
 end

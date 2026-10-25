@@ -15,8 +15,8 @@ cfg = struct('enabled',true,'allow_fallback',false, ...
 [out,info] = eegsl.petra.refine_skull_with_petra(cfg,charm,rand(6,6,6));
 tests.callback_path = info.used && any(out(:)==8) && any(out(:)==9);
 
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed, error('eegsl:Tests:PETRAFailure','PETRA test failed.'); end
+assert_test_checks(tests,'test_petra');
+tests.all_passed = true;
 end
 function [out,info] = register_identity(vol,~,~), out = vol; info = struct('backend','synthetic-identity'); end
 function [compact,cancellous,info] = segment_synthetic(~,charm,~)

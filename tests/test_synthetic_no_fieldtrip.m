@@ -19,8 +19,6 @@ r = eegsl.validate_synthetic_e2e(cfg);
 tests.runs = isfield(r,'metrics') && isfinite(r.metrics.sensor_rmse);
 tests.provenance_flag = ~r.provenance.fieldtrip_required;
 
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed
-    error('eegsl:Tests:SyntheticNoFieldTripFailure','Synthetic no-FieldTrip test failed.');
-end
+assert_test_checks(tests,'test_synthetic_no_fieldtrip');
+tests.all_passed = true;
 end

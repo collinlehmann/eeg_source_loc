@@ -2,7 +2,7 @@ function tests = test_noise_covariance()
 %TEST_NOISE_COVARIANCE Synthetic tests for canonical covariance configuration.
 rng(7);
 X = randn(8,1500);
-data = struct('data',X,'label',arrayfun(@(k)sprintf('E%d',k),1:8,'UniformOutput',false));
+data = struct('data',X,'label',{arrayfun(@(k)sprintf('E%d',k),1:8,'UniformOutput',false)});
 lf = struct('leadfield',{{randn(8,3),randn(8,3),randn(8,3)}});
 
 cfg = eegsl.default_config();
@@ -33,6 +33,6 @@ legacy.baseline = [-0.2 0.2];
 [Nlegacy,legacyInfo] = eegsl.noise.estimate_noise_cov(legacy,data,[],struct());
 tests.legacy_equivalent = isequal(size(Nlegacy),[8 8]) && legacyInfo.legacy_migration.baseline;
 
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed, error('eegsl:Tests:NoiseFailure','Noise covariance test failed.'); end
+assert_test_checks(tests,'test_noise_covariance');
+tests.all_passed = true;
 end

@@ -12,8 +12,6 @@ tests.hash_deterministic = strcmp(same1,same2);
 coord = eegsl.common.assert_coordinates(struct('unit','mm'),struct('unit','mm'));
 tests.coordinate_check = strcmp(coord.units,'mm');
 
-tests.all_passed = all(structfun(@(x) logical(x),tests));
-if ~tests.all_passed
-    error('eegsl:Tests:CoreFailure','One or more core utility tests failed.');
-end
+assert_test_checks(tests,'test_core_utilities');
+tests.all_passed = true;
 end

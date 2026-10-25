@@ -18,8 +18,6 @@ tests.diff_seed_sources = norm(a.synthetic.sources - c.synthetic.sources,'fro') 
 tests.diff_seed_sensor = norm(a.synthetic.sensor_noisy - c.synthetic.sensor_noisy,'fro') > 1e-3;
 tests.diff_seed_hash = ~strcmp(a.provenance.output_hash,c.provenance.output_hash);
 
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed
-    error('eegsl:Tests:SyntheticDeterminismFailure','Synthetic determinism test failed.');
-end
+assert_test_checks(tests,'test_synthetic_determinism');
+tests.all_passed = true;
 end

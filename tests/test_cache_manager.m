@@ -9,11 +9,11 @@ tests.exists=eegsl.common.has_artifact(cfg,'synthetic',key); manifest=eegsl.comm
 
 caught=false; try, eegsl.common.save_artifact(cfg,'synthetic',key,artifact,metadata); catch err, caught=strcmp(err.identifier,'eegsl:Cache:Exists'); end; tests.duplicate_rejected=caught;
 cfg.cache.overwrite=true; eegsl.common.save_artifact(cfg,'synthetic',key,artifact,metadata); tests.overwrite=true;
-cfg.cache.read_only=true; caught=false; try, eegsl.common.save_artifact(cfg,'other',key,artifact,metadata); catch err, caught=strcmp(err.identifier,'eegsl:Cache:ReadOnly'); end; tests.read_only=caught;
+cfg.cache.overwrite=false; cfg.cache.read_only=true; caught=false; try, eegsl.common.save_artifact(cfg,'other',key,artifact,metadata); catch err, caught=strcmp(err.identifier,'eegsl:Cache:ReadOnly'); end; tests.read_only=caught;
 
 % Corruption and configuration mismatch are detected on load.
 cfg.cache.read_only=false; cfg.cache.overwrite=true; fid=fopen(path,'w'); fwrite(fid,'not a MAT file'); fclose(fid); caught=false; try, eegsl.common.load_artifact(cfg,'synthetic',key); catch err, caught=strcmp(err.identifier,'eegsl:Cache:Read'); end; tests.corruption=caught;
 eegsl.common.delete_artifact(cfg,'synthetic',key); tests.deleted=~eegsl.common.has_artifact(cfg,'synthetic',key);
 
-tests.all_passed=all(structfun(@(x)logical(x),tests)); if ~tests.all_passed, error('eegsl:Tests:CacheFailure','Cache manager test failed.'); end
+assert_test_checks(tests,'test_cache_manager'); tests.all_passed=true;
 end

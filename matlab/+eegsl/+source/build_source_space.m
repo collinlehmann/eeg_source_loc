@@ -23,14 +23,15 @@ nchan = infer_channel_count(elec);
 heuristic = eegsl.source.electrode_density_heuristic(nchan, sourceCfg);
 
 voxelSize = get_voxel_size(anatomy);
-if isempty(sourceCfg.spacing_mm)
-    stride = max(1,ceil((nnz(mask)/max(1,heuristic.target_points))^(1/3)));
-    spacing = stride .* voxelSize;
-else
-    spacing = sourceCfg.spacing_mm;
-    if isscalar(spacing), spacing = repmat(spacing,1,3); end
-    stride = max(1,round(spacing ./ voxelSize));
-end
+ if isempty(sourceCfg.spacing_mm)
+     s = max(1,ceil((nnz(mask)/max(1,heuristic.target_points))^(1/3)));
+     stride = repmat(s,1,3);
+     spacing = stride .* voxelSize;
+ else
+     spacing = sourceCfg.spacing_mm;
+     if isscalar(spacing), spacing = repmat(spacing,1,3); end
+     stride = max(1,round(spacing ./ voxelSize));
+ end
 
 idx = false(size(mask));
 idx(1:stride(1):end,1:stride(2):end,1:stride(3):end) = true;
@@ -39,7 +40,7 @@ if sourceCfg.neighbor_continuity
     idx = apply_neighbor_continuity(idx);
 end
 if sourceCfg.symmetry
-    idx = enforce_grid_symmetry(idx);
+    idx = enforce_grid_symmetry(idx) & mask;
 end
 
 [iv,jv,kv] = ind2sub(size(idx),find(idx));
@@ -135,15 +136,12 @@ end
 end
 
 function out = enforce_grid_symmetry(in)
-center = (size(in)+1)/2;
-out = false(size(in));
-[x,y,z] = ind2sub(size(in),find(in));
-for k = 1:numel(x)
-    q = round(2*center - [x(k),y(k),z(k)]);
-    if all(q >= 1) && q(1) <= size(in,1) && q(2) <= size(in,2) && q(3) <= size(in,3) && in(q(1),q(2),q(3))
-        out(x(k),y(k),z(k)) = true;
-    end
-end
+% Left-right symmetry: reflect across the mid-sagittal plane (assumed to be
+% the centre of voxel dimension 1; dimension 1 is assumed to be L-R).
+% Union with the mirror image so a strided grid is never emptied. If the mask
+% itself is not symmetric, the caller's mask intersection can still leave
+% asymmetry.
+out = in | flip(in,1);
 end
 
 function orient = orientation_for_mode(mode)

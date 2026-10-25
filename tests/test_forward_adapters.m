@@ -14,6 +14,6 @@ tests.adapter = isstruct(hm) && isstruct(linked) && isstruct(lf);
 tests.timing = isfield(hmInfo,'elapsed_seconds') && isfield(linkInfo,'elapsed_seconds');
 tests.keys = isfield(keys,'stiffness_key') && isfield(keys,'transfer_key') && isfield(keys,'leadfield_key');
 tests.orientation = strcmp(lf.orientation,'free');
-tests.all_passed = all(structfun(@(x) logical(x),tests));
-if ~tests.all_passed, error('eegsl:Tests:ForwardFailure','Forward adapter test failed.'); end
+assert_test_checks(tests,'test_forward_adapters');
+tests.all_passed = true;
 end

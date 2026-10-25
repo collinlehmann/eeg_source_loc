@@ -24,10 +24,8 @@ src = struct('source',zeros(7,20),'active_sources',1);
 vcfg = eegsl.validate_config(cfg);
 tests.forward_mismatch = errid(@()eegsl.synthetic.project_and_noise(vcfg,lf,src)) == "eegsl:Synthetic:ForwardDimension";
 
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed
-    error('eegsl:Tests:SyntheticMalformedFailure','Synthetic malformed-input test failed.');
-end
+assert_test_checks(tests,'test_synthetic_malformed');
+tests.all_passed = true;
 end
 
 function run_e2e_with(cfg,field,value)
