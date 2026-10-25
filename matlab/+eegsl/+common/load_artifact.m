@@ -11,7 +11,12 @@ if ~isfield(cache_info,'key')||~strcmp(char(cache_info.key),char(key)), error('e
 metadata=loaded.metadata;
 if isfield(cache_info,'metadata_hash') && ~strcmp(char(cache_info.metadata_hash),eegsl.common.content_hash(metadata)), error('eegsl:Cache:Corrupt','Cache metadata integrity check failed: %s',path); end
 if isstruct(metadata)&&isfield(metadata,'configuration_hash')
-    expected=eegsl.common.cache_config_hash(cfg);
+    if isfield(metadata,'configuration_stage') && ...
+            ~strcmp(char(metadata.configuration_stage),'__full__')
+        expected=eegsl.common.stage_fingerprint(metadata.configuration_stage,cfg);
+    else
+        expected=eegsl.common.cache_config_hash(cfg);
+    end
     if ~strcmp(char(metadata.configuration_hash),expected), error('eegsl:Cache:ConfigurationMismatch','Cache artifact configuration does not match the requested configuration.'); end
 end
 artifact=loaded.artifact;
