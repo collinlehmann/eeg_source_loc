@@ -164,7 +164,7 @@ if isnumeric(data), X = data; return; end
 if ~isstruct(data), X = []; return; end
 if isfield(data,'trial') && iscell(data.trial)
     X = [];
-    for k = 1:numel(data.trial), X = [X,data.trial{k}]; %#ok<AGROW> end
+    for k = 1:numel(data.trial), X = [X,data.trial{k}]; end %#ok<AGROW>
 elseif isfield(data,'avg'), X = data.avg;
 elseif isfield(data,'data'), X = data.data;
 else, X = [];

@@ -105,7 +105,7 @@ if isstruct(x) && isfield(x,'data'), X = x.data; return; end
 if isstruct(x) && isfield(x,'avg'), X = x.avg; return; end
 if isstruct(x) && isfield(x,'trial') && iscell(x.trial)
     X = [];
-    for k = 1:numel(x.trial), X = [X,double(x.trial{k})]; %#ok<AGROW> end
+    for k = 1:numel(x.trial), X = [X,double(x.trial{k})]; end %#ok<AGROW>
 else, X = []; end
 end
 
