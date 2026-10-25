@@ -10,11 +10,9 @@ mode = cfg.mode;
 
 clean = data;
 steps = {};
-if ~isempty(cfg.filter_callback)
+if cfg.filter.enabled
     clean = cfg.filter_callback(clean,cfg.filter);
     steps{end+1} = 'filter'; %#ok<AGROW>
-elseif cfg.filter.enabled
-    error('eegsl:Preprocess:FilterAdapter','Filtering requires an explicit filter_callback.');
 end
 
 if cfg.downsample.enabled
@@ -80,7 +78,16 @@ info = eegsl.common.provenance('preprocessing',struct( ...
     'bad_channel_info',badInfo,'bad_epochs',badEpochs, ...
     'bad_epoch_info',epochInfo,'quality',quality, ...
     'filter',cfg.filter,'artifact',cfg.artifact, ...
-    'causal',strcmp(mode,'realtime')));
+    'causal',cfg.filter.causal));
+if strcmp(mode,'automated-offline') && cfg.artifact.enabled && ...
+        strcmpi(cfg.artifact.method,'ica')
+    info.ica_human_confirmed = cfg.artifact.human_confirmed;
+    if ~cfg.artifact.human_confirmed
+        info.flags = {'ica_components_not_human_confirmed'};
+    else
+        info.flags = {};
+    end
+end
 if strcmp(mode,'realtime') && ~quality.pass
     info.control_gate = false;
 else

@@ -19,5 +19,6 @@ The following remain intentionally configurable or adapter-only rather than sile
 - Confirm the proposed cortical-only representation: volumetric mask with free orientation or surface mesh with surface-normal orientation.
 - Confirm whether normalization MAD should use the Gaussian consistency factor 1.4826, as opposed to the provisional unscaled-MAD default.
 - Validate the stable-state heuristic threshold and method against representative source windows.
+- Unify preprocessing under `cfg.preprocessing` and derive its mode from `cfg.execution.mode` (tracked as future N10 work).
 
 The implementation must expose these as configuration or explicit adapter seams. It must not claim STN-specific or GPi-versus-GPe resolution from standard T1 imaging.

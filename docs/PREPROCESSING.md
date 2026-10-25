@@ -14,12 +14,12 @@ The configuration distinguishes:
 
 The implementation enforces key spec constraints:
 
-- real-time filtering must be causal;
+- filtering runs only when enabled, requires an adapter and complete filter provenance, and must be causal in real-time mode;
 - real-time epoch rejection is prohibited;
 - interactive offline artifact removal cannot silently use an unconfirmed automatic ICA policy;
 - artifact removal, filter design, downsampling, interpolation, bad-channel detection, and spatial filtering are explicit callbacks;
 - quality monitoring always runs and exposes a control-gating signal in real-time mode.
 
-The callback boundary is intentional. It allows FieldTrip-based filtering, ICA, regression, interpolation, and the Cartool-style spatial filter to be integrated without inventing toolbox-specific behavior in the orchestration layer. Filter and artifact configuration is retained in provenance, including whether the path was causal.
+The callback boundary is intentional. It allows FieldTrip-based filtering, ICA, regression, interpolation, and the Cartool-style spatial filter to be integrated without inventing toolbox-specific behavior in the orchestration layer. Filter and artifact configuration is retained in provenance, including the declared causal setting and whether ICA components were human-confirmed.
 
-The default quality monitor performs a finite-sample check and reports channel/global RMS. Production real-time deployments should provide a callback that adds impedance/drift, artifact-rate, and frozen-ICA stationarity metrics.
+The default quality monitor performs a finite-sample check and reports channel/global RMS. Real-time use requires a quality-monitor callback unless `quality_monitor.allow_default` explicitly permits the finite-only monitor. Production real-time deployments should provide a callback that adds impedance/drift, artifact-rate, and frozen-ICA stationarity metrics. The preprocessing configuration still uses its module-local schema; unification with `cfg.preprocessing` and `cfg.execution.mode` remains future work.
