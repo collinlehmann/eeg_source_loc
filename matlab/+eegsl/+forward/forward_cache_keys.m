@@ -2,6 +2,10 @@ function keys = forward_cache_keys(mesh, conductivity, elec, sourcemodel, cfg)
 %FORWARD_CACHE_KEYS Derive stable keys from forward inputs, not computed outputs.
 if nargin < 5 || isempty(cfg), cfg = eegsl.default_config(); end
 cfg = merge_config(eegsl.default_config(),cfg);
+if ismember(lower(char(cfg.forward.engine)),{'simbio','duneuro'}) && ...
+        ~isempty(conductivity) && isstruct(mesh) && isfield(mesh,'tissuelabel')
+    [conductivity,~] = eegsl.forward.resolve_conductivity(mesh,conductivity);
+end
 elecGeom = struct('elecpos',getf(elec,'elecpos',[]), ...
     'chanpos',getf(elec,'chanpos',[]),'label',{getf(elec,'label',{})}, ...
     'unit',getf(elec,'unit',''),'coordsys',getf(elec,'coordsys',''));
