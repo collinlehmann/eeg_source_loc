@@ -50,6 +50,8 @@ if isfield(cfg,'analytic_headmodel') && ~isempty(cfg.analytic_headmodel)
 end
 headmodel = struct('type','analytic-adapter','mesh',mesh, ...
     'conductivity',conductivity,'engine','analytic');
+if isfield(mesh,'unit'), headmodel.unit = mesh.unit; end
+if isfield(mesh,'coordsys'), headmodel.coordsys = mesh.coordsys; end
 end
 
 function validate_mesh(mesh)

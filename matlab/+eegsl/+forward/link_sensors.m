@@ -10,7 +10,7 @@ end
 base = eegsl.default_config();
 if isfield(cfg,'forward'), fcfg = merge_struct(base.forward,cfg.forward); else, fcfg = base.forward; end
 engine = lower(char(fcfg.engine));
-eegsl.common.assert_coordinates(headmodel,elec);
+eegsl.common.assert_coordinates(headmodel,elec,'require_unit',true);
 
 if isfield(elec,'unit') && ~isempty(elec.unit) && isfield(headmodel,'unit') && ~isempty(headmodel.unit)
     if ~strcmpi(char(elec.unit),char(headmodel.unit))

@@ -1,6 +1,6 @@
 function tests = test_forward_adapters()
 %TEST_FORWARD_ADAPTERS Dependency-free tests for adapter seams and cache keys.
-mesh = struct('pnt',zeros(4,3),'tet',ones(1,4));
+mesh = struct('pnt',zeros(4,3),'tet',ones(1,4),'unit','mm');
 cond = [0.33 0.013 0.33];
 elec = struct('chanpos',zeros(8,3),'unit','mm');
 sourcemodel = struct('pos',zeros(10,3),'orientation','free','unit','mm');
