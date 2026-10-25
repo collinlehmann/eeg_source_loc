@@ -13,5 +13,7 @@ The following remain intentionally configurable or adapter-only rather than sile
 - Regularization defaults and representative-window policy.
 - Causal real-time filter design, delay characterization, and online quality-monitoring thresholds.
 - Uniform-null scaling for fixed-orientation lead fields; confirm against Moiseev 2025.
+- Whether the source-grid symmetry plane should use an optimal sagittal-plane estimate instead of the mask centroid.
+- Validate the provisional electrode-density heuristic; its clamp yields about 3000 points for montages up to 250 channels.
 
 The implementation must expose these as configuration or explicit adapter seams. It must not claim STN-specific or GPi-versus-GPe resolution from standard T1 imaging.

@@ -28,7 +28,29 @@ if cfg.source.max_points < cfg.source.min_points
 end
 if ~isempty(cfg.source.target_points), cfg.source.target_points = positive_integer(cfg.source.target_points,'source.target_points'); end
 cfg.source.symmetry = require_logical(cfg.source.symmetry,'source.symmetry');
+cfg.source.symmetry_mode = normalize_enum(cfg.source.symmetry_mode, ...
+    'source.symmetry_mode',{'lattice','enforce'},false);
+if ~isempty(cfg.source.spacing_mm)
+    if ~isscalar(cfg.source.spacing_mm)
+        error('eegsl:Source:AnisotropicSpacing','source.spacing_mm must be scalar.');
+    end
+    cfg.source.spacing_mm = positive_scalar(cfg.source.spacing_mm,'source.spacing_mm');
+end
+if ischar(cfg.source.midsagittal_x) || (isstring(cfg.source.midsagittal_x) && isscalar(cfg.source.midsagittal_x))
+    cfg.source.midsagittal_x = lower(char(cfg.source.midsagittal_x));
+    if ~strcmp(cfg.source.midsagittal_x,'mask_centroid')
+        error('eegsl:Config:SourceMidline','source.midsagittal_x must be numeric or mask_centroid.');
+    end
+elseif isnumeric(cfg.source.midsagittal_x) && isscalar(cfg.source.midsagittal_x) && isfinite(cfg.source.midsagittal_x)
+    cfg.source.midsagittal_x = double(cfg.source.midsagittal_x);
+else
+    error('eegsl:Config:SourceMidline','source.midsagittal_x must be numeric or mask_centroid.');
+end
 cfg.source.neighbor_continuity = require_logical(cfg.source.neighbor_continuity,'source.neighbor_continuity');
+cfg.source.neighbor_min = positive_integer(cfg.source.neighbor_min,'source.neighbor_min');
+cfg.source.neighbor_passes = positive_integer(cfg.source.neighbor_passes,'source.neighbor_passes');
+cfg.source.cortical_representation = normalize_enum(cfg.source.cortical_representation, ...
+    'source.cortical_representation',{'volume','surface'},false);
 
 cfg.forward.engine = normalize_enum(cfg.forward.engine,'forward.engine',{'simbio','duneuro','analytic'},false);
 cfg.forward.orientation = normalize_enum(cfg.forward.orientation,'forward.orientation',{'auto','free','fixed','surface-normal'},false);
