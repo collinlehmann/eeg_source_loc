@@ -2,6 +2,11 @@
 
 The cache manager uses only MATLAB filesystem APIs (`fullfile`, `mkdir`, `movefile`, `isfile`, `isfolder`, `dir`, `delete`, and `rmdir`) and is intended to work on Windows and macOS.
 
+Content keys use SHA-256 over MATLAB's `getByteStreamFromArray` serialization and
+require the JVM. This serialization function is undocumented and may change between
+MATLAB releases; a release change can therefore cause cache misses, but not incorrect
+cache hits. `cache_info.matlab_version` is recorded with each artifact.
+
 The hardened cache provides:
 
 - atomic same-directory writes;
