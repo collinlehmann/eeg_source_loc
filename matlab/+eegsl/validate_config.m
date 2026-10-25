@@ -52,7 +52,7 @@ if strcmp(cfg.noise.route,'baseline') && isempty(cfg.noise.baseline), error('eeg
 if ~isempty(cfg.noise.baseline), validate_window(cfg.noise.baseline,'noise.baseline'); end
 
 cfg.inverse.method = normalize_enum(cfg.inverse.method,'inverse.method',{'wmne','eloreta','sloreta','lcmv'},false);
-cfg.inverse.reduction = normalize_enum(cfg.inverse.reduction,'inverse.reduction',{'norm','dominant','vector'},false);
+cfg.inverse.reduction = normalize_enum(cfg.inverse.reduction,'inverse.reduction',{'','norm','dominant','vector'},false);
 if ~isempty(cfg.inverse.lambda), cfg.inverse.lambda = positive_scalar(cfg.inverse.lambda,'inverse.lambda'); end
 if ~isempty(cfg.inverse.lambda_default), cfg.inverse.lambda_default = positive_scalar(cfg.inverse.lambda_default,'inverse.lambda_default'); end
 cfg.inverse.depth_exponent = nonnegative_scalar(cfg.inverse.depth_exponent,'inverse.depth_exponent');
