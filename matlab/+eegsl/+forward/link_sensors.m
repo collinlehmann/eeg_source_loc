@@ -4,13 +4,14 @@ function [linked, elecProjected, info] = link_sensors(headmodel, elec, cfg)
 %   The expensive operation is timed and recorded. No per-source FEM solves
 %   are performed here.
 if nargin < 3, cfg = struct(); end
+reject_legacy_fieldtrip(cfg);
 if isempty(headmodel) || isempty(elec)
     error('eegsl:Forward:MissingInput','headmodel and elec are required.');
 end
 base = eegsl.default_config();
 if isfield(cfg,'forward'), fcfg = merge_struct(base.forward,cfg.forward); else, fcfg = base.forward; end
 engine = lower(char(fcfg.engine));
-eegsl.common.assert_coordinates(headmodel,elec);
+eegsl.common.assert_coordinates(headmodel,elec,'require_unit',true);
 
 if isfield(elec,'unit') && ~isempty(elec.unit) && isfield(headmodel,'unit') && ~isempty(headmodel.unit)
     if ~strcmpi(char(elec.unit),char(headmodel.unit))
@@ -36,8 +37,7 @@ end
 elapsed = toc(t0);
 info = eegsl.common.provenance('sensor_link',struct( ...
     'engine',engine,'elapsed_seconds',elapsed, ...
-    'transfer_id',eegsl.common.cache_key('transfer',headmodel,elec), ...
-    'headmodel_id',eegsl.common.content_hash(headmodel), ...
+    'cache_keys',cache_keys(fcfg), ...
     'electrode_id',eegsl.common.content_hash(elec)));
 end
 
@@ -51,9 +51,21 @@ end
 function value = get_field(s,name,default)
 if isfield(s,name), value = s.(name); else, value = default; end
 end
+function keys = cache_keys(fcfg)
+keys = struct();
+if isfield(fcfg,'cache_keys') && isstruct(fcfg.cache_keys) && ~isempty(fcfg.cache_keys)
+    keys = fcfg.cache_keys;
+end
+end
 function out = merge_struct(base,override)
 out = base;
 for f = fieldnames(override)'
     out.(f{1}) = override.(f{1});
+end
+end
+function reject_legacy_fieldtrip(cfg)
+if isstruct(cfg) && isfield(cfg,'fieldtrip')
+    error('eegsl:Forward:LegacyFieldTripConfig', ...
+        'Move cfg.fieldtrip options to cfg.forward.fieldtrip.headmodel, .vol_sens, or .leadfield.');
 end
 end

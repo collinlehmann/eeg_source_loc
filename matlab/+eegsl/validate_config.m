@@ -28,11 +28,45 @@ if cfg.source.max_points < cfg.source.min_points
 end
 if ~isempty(cfg.source.target_points), cfg.source.target_points = positive_integer(cfg.source.target_points,'source.target_points'); end
 cfg.source.symmetry = require_logical(cfg.source.symmetry,'source.symmetry');
+cfg.source.symmetry_mode = normalize_enum(cfg.source.symmetry_mode, ...
+    'source.symmetry_mode',{'lattice','enforce'},false);
+if ~isempty(cfg.source.spacing_mm)
+    if ~isscalar(cfg.source.spacing_mm)
+        error('eegsl:Source:AnisotropicSpacing','source.spacing_mm must be scalar.');
+    end
+    cfg.source.spacing_mm = positive_scalar(cfg.source.spacing_mm,'source.spacing_mm');
+end
+if ischar(cfg.source.midsagittal_x) || (isstring(cfg.source.midsagittal_x) && isscalar(cfg.source.midsagittal_x))
+    cfg.source.midsagittal_x = lower(char(cfg.source.midsagittal_x));
+    if ~strcmp(cfg.source.midsagittal_x,'mask_centroid')
+        error('eegsl:Config:SourceMidline','source.midsagittal_x must be numeric or mask_centroid.');
+    end
+elseif isnumeric(cfg.source.midsagittal_x) && isscalar(cfg.source.midsagittal_x) && isfinite(cfg.source.midsagittal_x)
+    cfg.source.midsagittal_x = double(cfg.source.midsagittal_x);
+else
+    error('eegsl:Config:SourceMidline','source.midsagittal_x must be numeric or mask_centroid.');
+end
 cfg.source.neighbor_continuity = require_logical(cfg.source.neighbor_continuity,'source.neighbor_continuity');
+cfg.source.neighbor_min = positive_integer(cfg.source.neighbor_min,'source.neighbor_min');
+cfg.source.neighbor_passes = positive_integer(cfg.source.neighbor_passes,'source.neighbor_passes');
+cfg.source.cortical_representation = normalize_enum(cfg.source.cortical_representation, ...
+    'source.cortical_representation',{'volume','surface'},false);
 
 cfg.forward.engine = normalize_enum(cfg.forward.engine,'forward.engine',{'simbio','duneuro','analytic'},false);
 cfg.forward.orientation = normalize_enum(cfg.forward.orientation,'forward.orientation',{'auto','free','fixed','surface-normal'},false);
 cfg.forward.require_fieldtrip = require_logical(cfg.forward.require_fieldtrip,'forward.require_fieldtrip');
+for fieldtripStage = {'headmodel','vol_sens','leadfield'}
+    if ~isstruct(cfg.forward.fieldtrip.(fieldtripStage{1}))
+        error('eegsl:Config:FieldTripOptions','forward.fieldtrip.%s must be a struct.',fieldtripStage{1});
+    end
+end
+if ~isempty(cfg.forward.cache_keys) && ~isstruct(cfg.forward.cache_keys)
+    error('eegsl:Config:ForwardCacheKeys','forward.cache_keys must be a struct or empty.');
+end
+cfg.forward.analytic.prenormal = require_logical(cfg.forward.analytic.prenormal,'forward.analytic.prenormal');
+if ~isempty(cfg.forward.analytic.builder) && ~isa(cfg.forward.analytic.builder,'function_handle')
+    error('eegsl:Config:AnalyticBuilder','forward.analytic.builder must be a function handle or empty.');
+end
 cfg.forward.parallel.enabled = require_logical(cfg.forward.parallel.enabled,'forward.parallel.enabled');
 if ~isempty(cfg.forward.parallel.workers), cfg.forward.parallel.workers = positive_integer(cfg.forward.parallel.workers,'forward.parallel.workers'); end
 
@@ -42,6 +76,8 @@ if ~isempty(cfg.reference.projector), validate_square_matrix(cfg.reference.proje
 
 cfg.noise.route = normalize_enum(cfg.noise.route,'noise.route',{'','baseline','emptyroom','diagonal','uniform_null'},false);
 cfg.noise.tol = positive_scalar(cfg.noise.tol,'noise.tol');
+cfg.noise.sigma_method = normalize_enum(cfg.noise.sigma_method, ...
+    'noise.sigma_method',{'closed_form','bisection'},false);
 cfg.noise.max_iterations = positive_integer(cfg.noise.max_iterations,'noise.max_iterations');
 cfg.noise.reg.method = normalize_enum(cfg.noise.reg.method,'noise.reg.method',{'none','shrinkage','loading'},false);
 if ~isempty(cfg.noise.reg.value), cfg.noise.reg.value = nonnegative_scalar(cfg.noise.reg.value,'noise.reg.value'); end
@@ -50,7 +86,7 @@ if strcmp(cfg.noise.route,'baseline') && isempty(cfg.noise.baseline), error('eeg
 if ~isempty(cfg.noise.baseline), validate_window(cfg.noise.baseline,'noise.baseline'); end
 
 cfg.inverse.method = normalize_enum(cfg.inverse.method,'inverse.method',{'wmne','eloreta','sloreta','lcmv'},false);
-cfg.inverse.reduction = normalize_enum(cfg.inverse.reduction,'inverse.reduction',{'norm','dominant','vector'},false);
+cfg.inverse.reduction = normalize_enum(cfg.inverse.reduction,'inverse.reduction',{'','norm','dominant','vector'},false);
 if ~isempty(cfg.inverse.lambda), cfg.inverse.lambda = positive_scalar(cfg.inverse.lambda,'inverse.lambda'); end
 if ~isempty(cfg.inverse.lambda_default), cfg.inverse.lambda_default = positive_scalar(cfg.inverse.lambda_default,'inverse.lambda_default'); end
 cfg.inverse.depth_exponent = nonnegative_scalar(cfg.inverse.depth_exponent,'inverse.depth_exponent');
@@ -60,6 +96,9 @@ cfg.normalization.enabled = require_logical(cfg.normalization.enabled,'normaliza
 cfg.normalization.subsamples = positive_integer(cfg.normalization.subsamples,'normalization.subsamples');
 cfg.normalization.minimum_samples = positive_integer(cfg.normalization.minimum_samples,'normalization.minimum_samples');
 cfg.normalization.stable_state_fraction_warning = bounded_scalar(cfg.normalization.stable_state_fraction_warning,'normalization.stable_state_fraction_warning',0,1);
+cfg.normalization.stable_state_z = positive_scalar(cfg.normalization.stable_state_z,'normalization.stable_state_z');
+cfg.normalization.mad_scale = positive_scalar(cfg.normalization.mad_scale,'normalization.mad_scale');
+if ~isempty(cfg.normalization.seed), cfg.normalization.seed = nonnegative_integer(cfg.normalization.seed,'normalization.seed'); end
 cfg.normalization.scale_floor = positive_scalar(cfg.normalization.scale_floor,'normalization.scale_floor');
 if ~isempty(cfg.normalization.window), validate_window(cfg.normalization.window,'normalization.window'); end
 

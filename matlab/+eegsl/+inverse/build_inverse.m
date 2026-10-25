@@ -21,7 +21,7 @@ N = (N+N')/2;
 
 switch method
     case 'wmne'
-        [M, methodInfo] = build_wmne(L,N,cfg,leadfield);
+        [M, methodInfo] = build_wmne(L,N,cfg,leadfield,lfmeta);
     case {'eloreta','sloreta','lcmv'}
         error('eegsl:Inverse:NotImplemented', ...
             ['Method %s has an interface but no validated numerical implementation yet. ' ...
@@ -36,32 +36,44 @@ operator.method = method;
 operator.n_channels = size(M,2);
 operator.n_source_components = size(M,1);
 operator.orientation = get_orientation(leadfield);
-operator.reduction = char(cfg.inverse.reduction);
+operator.recommended_reduction = recommended_reduction(method,cfg);
 operator.reference = get_reference(cfg,size(N,1));
 operator.leadfield_id = get_id(leadfield,'leadfield_id');
 operator.source_space_id = get_id(leadfield,'source_space_id');
 operator.noise_covariance_id = eegsl.common.content_hash(N);
+operator.block_sizes = lfmeta.block_sizes;
+operator.inside_index = lfmeta.inside_index;
+operator.empty_indices = lfmeta.empty_indices;
+operator.label = get_labels(leadfield);
 operator.metadata = methodInfo;
 operator.apply_is_silent = true;
 operator.operator_id = eegsl.common.cache_key('inverse',operator.leadfield_id, ...
-    method,operator.noise_covariance_id,methodInfo.lambda,operator.orientation);
+    method,operator.noise_covariance_id,methodInfo.lambda,cfg.inverse.depth_exponent, ...
+    cfg.inverse.regularization,eegsl.common.content_hash(operator.reference.projector), ...
+    operator.block_sizes,operator.orientation,eegsl.common.content_hash(operator.label));
 
 info = eegsl.common.provenance('inverse_operator',struct( ...
     'method',method,'orientation',operator.orientation, ...
-    'reduction',operator.reduction,'n_channels',size(M,2), ...
+    'recommended_reduction',operator.recommended_reduction,'n_channels',size(M,2), ...
     'n_source_components',size(M,1),'leadfield_id',operator.leadfield_id, ...
     'noise_covariance_id',operator.noise_covariance_id, ...
     'operator_id',operator.operator_id,'method_details',methodInfo, ...
-    'reference',operator.reference));
+    'reference',operator.reference,'block_sizes',operator.block_sizes, ...
+    'label',{operator.label}));
 end
 
-function [M, out] = build_wmne(L,N,cfg,leadfield)
+function [M, out] = build_wmne(L,N,cfg,leadfield,lfmeta)
 % Weighted minimum norm with configurable depth weighting.
 exponent = cfg.inverse.depth_exponent;
 if isempty(exponent), exponent = 0.8; end
-columnNorm = sqrt(sum(abs(L).^2,1));
-columnNorm(columnNorm <= eps) = 1;
-weights = columnNorm.^(-double(exponent));
+edges = cumsum([0 lfmeta.block_sizes]);
+weights = ones(1,size(L,2));
+for i = 1:numel(lfmeta.block_sizes)
+    cols = edges(i)+1:edges(i+1);
+    f = norm(L(:,cols),'fro');
+    if f <= eps, f = 1; end
+    weights(cols) = f^(-double(exponent));
+end
 W = diag(weights);
 LW = L*W;
 [C, subspace, T] = covariance_inverse(N,cfg);
@@ -110,23 +122,75 @@ else
     value = leadfield;
 end
 if iscell(value)
-    blocks = value;
-    nchan = size(blocks{1},1);
-    L = zeros(nchan,sum(cellfun(@(x)size(x,2),blocks)));
-    cursor = 1;
-    for k = 1:numel(blocks)
-        block = double(blocks{k});
-        if size(block,1) ~= nchan, error('eegsl:Inverse:LeadfieldChannels','Inconsistent leadfield channels.'); end
-        stop = cursor + size(block,2)-1;
-        L(:,cursor:stop) = block;
-        cursor = stop+1;
-    end
-    meta = struct('n_sources',numel(blocks),'blocks',{blocks});
+    allBlocks = value;
 elseif isnumeric(value) && ismatrix(value)
-    L = double(value);
-    meta = struct('n_sources',size(L,2),'blocks',{{L}});
+    orientation = get_orientation(leadfield);
+    switch lower(orientation)
+        case 'free'
+            if mod(size(value,2),3) ~= 0
+                error('eegsl:Inverse:LeadfieldColumns','Free-orientation leadfield columns must be divisible by three.');
+            end
+            allBlocks = arrayfun(@(k)value(:,3*k-2:3*k),1:size(value,2)/3,'UniformOutput',false);
+        case {'scalar','fixed','surface-normal'}
+            allBlocks = arrayfun(@(k)value(:,k),1:size(value,2),'UniformOutput',false);
+        otherwise
+            error('eegsl:Inverse:AmbiguousOrientation','Numeric leadfields require an explicit orientation field.');
+    end
 else
     error('eegsl:Inverse:LeadfieldFormat','Unsupported leadfield format.');
+end
+inside = get_inside(leadfield,numel(allBlocks));
+emptyIndices = [];
+if isempty(inside)
+    emptyIndices = find(cellfun(@isempty,allBlocks));
+    selected = find(~cellfun(@isempty,allBlocks));
+else
+    selected = find(inside);
+end
+blocks = allBlocks(selected);
+if any(cellfun(@isempty,blocks))
+    error('eegsl:Leadfield:EmptyInsideBlock','An inside source point has an empty lead-field block.');
+end
+if isempty(blocks), error('eegsl:Inverse:LeadfieldFormat','No non-empty inside leadfield blocks.'); end
+nchan = size(blocks{1},1);
+blockSizes = cellfun(@(x)size(x,2),blocks);
+L = zeros(nchan,sum(blockSizes));
+cursor = 1;
+for k = 1:numel(blocks)
+    block = double(blocks{k});
+    if size(block,1) ~= nchan, error('eegsl:Inverse:LeadfieldChannels','Inconsistent leadfield channels.'); end
+    stop = cursor+size(block,2)-1;
+    L(:,cursor:stop) = block;
+    cursor = stop+1;
+end
+meta = struct('n_sources',numel(blocks),'blocks',{blocks}, ...
+    'block_sizes',blockSizes,'inside_index',selected,'empty_indices',emptyIndices);
+end
+
+function inside = get_inside(leadfield,nloc)
+inside = [];
+if isstruct(leadfield) && isfield(leadfield,'inside') && ~isempty(leadfield.inside)
+    if numel(leadfield.inside) ~= nloc
+        error('eegsl:Inverse:InsideShape','Leadfield inside vector does not match source locations.');
+    end
+    inside = logical(leadfield.inside(:));
+end
+end
+
+function labels = get_labels(leadfield)
+labels = {};
+if isstruct(leadfield) && isfield(leadfield,'label') && ~isempty(leadfield.label)
+    labels = leadfield.label(:);
+end
+end
+function mode = recommended_reduction(method,cfg)
+switch method
+    case 'lcmv', mode = 'dominant';
+    otherwise, mode = 'norm';
+end
+if isfield(cfg,'inverse') && isfield(cfg.inverse,'reduction') && ...
+        ~isempty(cfg.inverse.reduction)
+    mode = char(cfg.inverse.reduction);
 end
 end
 

@@ -4,6 +4,7 @@ if nargin < 2 || isempty(cfg), cfg = struct(); end
 if isfield(cfg,'callback') && isa(cfg.callback,'function_handle')
     quality = cfg.callback(data,cfg);
     if ~isfield(quality,'pass'), quality.pass = false; end
+    quality.monitor = 'callback';
     return;
 end
 X = numeric_samples(data);
@@ -14,13 +15,14 @@ end
 X = double(X);
 quality = struct();
 quality.pass = all(isfinite(X(:)));
-quality.reason = ternary(quality.pass,'default_finite_check_failed', 'nonfinite_samples');
+quality.reason = ternary(quality.pass,'finite_check_passed','nonfinite_samples');
 quality.n_samples = size(X,2);
 quality.n_channels = size(X,1);
 quality.channel_rms = sqrt(mean(X.^2,2));
 quality.global_rms = sqrt(mean(X(:).^2));
 quality.artifact_rate = NaN;
 quality.impedance = NaN;
+quality.monitor = 'default_finite_only';
 end
 function X = numeric_samples(data)
 if isnumeric(data), X = data; return; end

@@ -13,5 +13,5 @@ cfg.noise.route = 'diagonal';
 cfg.inverse.lambda = 0.05;
 cfg.synthetic.seed = 42;
 
-result = eegsl.run_synthetic_validation(cfg);
+result = eegsl.validate_synthetic_e2e(cfg);
 end

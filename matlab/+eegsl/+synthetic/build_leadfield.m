@@ -23,6 +23,7 @@ for j = 1:ns
 end
 L = L ./ max(sqrt(sum(L.^2,1)));
 lf = struct('leadfield',L,'orientation',cfg.synthetic.orientation_mode, ...
-    'source_space_id',eegsl.common.content_hash(space.pos));
+    'source_space_id',eegsl.common.content_hash(space.pos), ...
+    'label',{arrayfun(@(k)sprintf('E%d',k),1:nch,'UniformOutput',false)'});
 lf.leadfield_id = eegsl.common.cache_key('synthetic_leadfield',L,lf.source_space_id);
 end

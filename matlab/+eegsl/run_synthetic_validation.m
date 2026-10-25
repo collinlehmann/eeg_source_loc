@@ -1,5 +1,7 @@
 function result = run_synthetic_validation(cfg)
-%RUN_SYNTHETIC_VALIDATION Public entrypoint for deterministic synthetic E2E validation.
+%RUN_SYNTHETIC_VALIDATION Deprecated alias for validate_synthetic_e2e.
 if nargin < 1, cfg = struct(); end
-result = eegsl.pipeline.run_synthetic_validation(cfg);
+warning('eegsl:Deprecated:RunSyntheticValidation', ...
+    'eegsl.run_synthetic_validation is deprecated; use eegsl.validate_synthetic_e2e.');
+result = eegsl.validate_synthetic_e2e(cfg);
 end
