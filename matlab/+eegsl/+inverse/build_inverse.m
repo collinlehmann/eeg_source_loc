@@ -138,7 +138,7 @@ if isstruct(x) && isfield(x,name) && ~isempty(x.(name)), id = x.(name); else, id
 end
 function ref = get_reference(cfg,n)
 ref = struct('projector',eye(n),'rank',n);
-if isfield(cfg,'reference') && isstruct(cfg.reference) && isfield(cfg.reference,'projector')
+if isfield(cfg,'reference') && isstruct(cfg.reference) && isfield(cfg.reference,'projector') && ~isempty(cfg.reference.projector)
     P = cfg.reference.projector;
     if ~isequal(size(P),[n n]), error('eegsl:Inverse:ReferenceShape','Reference projector has wrong size.'); end
     ref.projector = P;
