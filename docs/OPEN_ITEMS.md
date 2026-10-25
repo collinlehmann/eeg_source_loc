@@ -3,6 +3,7 @@
 The following remain intentionally configurable or adapter-only rather than silently receiving invented scientific defaults:
 
 - Exact FieldTrip API fields for the installed release.
+- Verify installed `ft_prepare_vol_sens`, `ft_prepare_leadfield`, `ft_compute_leadfield`, and SimBio transfer-matrix behavior before changing adapter call signatures.
 - FreeSurfer command names and DTI-joint thalamic module availability.
 - Lead-DBS atlas selection, warp method, licensing, and QC thresholds.
 - PETRA registration backend (SPM versus ANTs), registration QC thresholds, N4 availability, and conductivity values.

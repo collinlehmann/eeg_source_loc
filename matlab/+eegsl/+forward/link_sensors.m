@@ -4,6 +4,7 @@ function [linked, elecProjected, info] = link_sensors(headmodel, elec, cfg)
 %   The expensive operation is timed and recorded. No per-source FEM solves
 %   are performed here.
 if nargin < 3, cfg = struct(); end
+reject_legacy_fieldtrip(cfg);
 if isempty(headmodel) || isempty(elec)
     error('eegsl:Forward:MissingInput','headmodel and elec are required.');
 end
@@ -60,5 +61,11 @@ function out = merge_struct(base,override)
 out = base;
 for f = fieldnames(override)'
     out.(f{1}) = override.(f{1});
+end
+end
+function reject_legacy_fieldtrip(cfg)
+if isstruct(cfg) && isfield(cfg,'fieldtrip')
+    error('eegsl:Forward:LegacyFieldTripConfig', ...
+        'Move cfg.fieldtrip options to cfg.forward.fieldtrip.headmodel, .vol_sens, or .leadfield.');
 end
 end

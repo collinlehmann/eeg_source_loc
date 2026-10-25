@@ -3,6 +3,7 @@ function [leadfield, info] = build_leadfield(linked, elec, sourcemodel, cfg)
 %   FEM engines delegate to FieldTrip. The analytic path is adapter-only unless
 %   the caller supplies a prepared lead field or a custom builder callback.
 if nargin < 4, cfg = struct(); end
+reject_legacy_fieldtrip(cfg);
 if isempty(sourcemodel)
     error('eegsl:Forward:MissingSourceModel','sourcemodel is required.');
 end
@@ -22,10 +23,15 @@ analyticCfg = base.forward.analytic;
 if isfield(cfg,'forward') && isfield(cfg.forward,'analytic')
     analyticCfg = merge_struct(analyticCfg,cfg.forward.analytic);
 end
-if isfield(cfg,'analytic_leadfield') && ~isempty(cfg.analytic_leadfield)
+legacyAnalytic = isfield(cfg,'analytic_leadfield') || isfield(cfg,'analytic_builder');
+if legacyAnalytic
+    warning('eegsl:Forward:LegacyAnalyticConfig', ...
+        'Use cfg.forward.analytic.headmodel, leadfield, and builder.');
+end
+if isempty(analyticCfg.leadfield) && isfield(cfg,'analytic_leadfield') && ~isempty(cfg.analytic_leadfield)
     analyticCfg.leadfield = cfg.analytic_leadfield;
 end
-if isfield(cfg,'analytic_builder') && isa(cfg.analytic_builder,'function_handle')
+if isempty(analyticCfg.builder) && isfield(cfg,'analytic_builder') && isa(cfg.analytic_builder,'function_handle')
     analyticCfg.builder = cfg.analytic_builder;
 end
 
@@ -183,5 +189,11 @@ function out = merge_struct(base,override)
 out = base;
 for f = fieldnames(override)'
     out.(f{1}) = override.(f{1});
+end
+end
+function reject_legacy_fieldtrip(cfg)
+if isstruct(cfg) && isfield(cfg,'fieldtrip')
+    error('eegsl:Forward:LegacyFieldTripConfig', ...
+        'Move cfg.fieldtrip options to cfg.forward.fieldtrip.headmodel, .vol_sens, or .leadfield.');
 end
 end

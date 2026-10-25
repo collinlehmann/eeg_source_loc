@@ -7,7 +7,7 @@ sourcemodel = struct('pos',zeros(10,3),'orientation','free','unit','mm');
 cfg = struct('forward',struct('engine','analytic','require_fieldtrip',false));
 [hm,hmInfo] = eegsl.forward.build_headmodel(mesh,cond,cfg);
 [linked,projected,linkInfo] = eegsl.forward.link_sensors(hm,elec,cfg); %#ok<ASGLU>
-cfg.analytic_leadfield = struct('leadfield',{randn(8,30)});
+cfg.forward.analytic.leadfield = struct('leadfield',{randn(8,30)});
 [lf,lfInfo] = eegsl.forward.build_leadfield(linked,projected,sourcemodel,cfg); %#ok<ASGLU>
 keys = eegsl.forward.forward_cache_keys(mesh,cond,elec,sourcemodel,cfg);
 cfg2 = cfg; cfg2.inverse = struct('lambda',0.2);
@@ -48,6 +48,32 @@ catch err
     caught = strcmp(err.identifier,'eegsl:Forward:MissingNormals');
 end
 tests.missing_normals = caught;
+
+tissueMesh = struct('tissuelabel',{{'scalp','skull'}});
+[ordered,condInfo] = eegsl.forward.resolve_conductivity(tissueMesh, ...
+    struct('skull',0.01,'scalp',0.43));
+tests.conductivity_ordered = isequal(ordered,[0.43;0.01]) && ...
+    isequal(condInfo.tissuelabel,{'scalp';'skull'});
+lastwarn('');
+eegsl.forward.resolve_conductivity(tissueMesh,[0.43 0.01]);
+[~,conductivityWarning] = lastwarn;
+tests.conductivity_order_assumed = strcmp(conductivityWarning, ...
+    'eegsl:Forward:ConductivityOrderAssumed');
+tests.conductivity_missing = error_id(@()eegsl.forward.resolve_conductivity( ...
+    tissueMesh,struct('scalp',0.43)),'eegsl:Forward:ConductivityMissingTissue');
+tests.conductivity_extra = error_id(@()eegsl.forward.resolve_conductivity( ...
+    tissueMesh,struct('scalp',0.43,'skull',0.01,'brain',0.33)), ...
+    'eegsl:Forward:ConductivityExtraTissue');
+tests.missing_tissue_labels = error_id(@()eegsl.forward.resolve_conductivity( ...
+    struct(),[0.43 0.01]),'eegsl:Forward:MissingTissueLabel');
+legacyCfg = struct('fieldtrip',struct());
+tests.legacy_fieldtrip_config = error_id(@()eegsl.forward.build_headmodel( ...
+    mesh,cond,legacyCfg),'eegsl:Forward:LegacyFieldTripConfig');
 assert_test_checks(tests,'test_forward_adapters');
 tests.all_passed = true;
+end
+
+function caught = error_id(f,id)
+caught = false;
+try, f(); catch err, caught = strcmp(err.identifier,id); end
 end

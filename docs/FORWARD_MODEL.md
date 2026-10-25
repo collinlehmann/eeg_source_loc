@@ -31,3 +31,11 @@ projects each free-orientation block as `H_i*n_i'`; FieldTrip's fixed-orientatio
 maximum-power selection is not used. An analytic adapter that returns already
 projected one-column blocks must explicitly set
 `cfg.forward.analytic.prenormal = true`.
+
+FEM conductivity may be supplied as tissue-name/value pairs and is reordered to
+`mesh.tissuelabel`; numeric vectors are accepted with an order-assumed warning.
+The FieldTrip call signatures, accepted vol-sens options, version reporting, and
+whether `ft_prepare_leadfield` recomputes a linked transfer matrix still require
+verification against an installed FieldTrip source tree. The current environment
+has no MATLAB or FieldTrip source, so those call paths have not been changed or
+claimed as validated; `test_forward_fieldtrip` reports this as skipped.

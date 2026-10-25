@@ -55,6 +55,14 @@ cfg.source.cortical_representation = normalize_enum(cfg.source.cortical_represen
 cfg.forward.engine = normalize_enum(cfg.forward.engine,'forward.engine',{'simbio','duneuro','analytic'},false);
 cfg.forward.orientation = normalize_enum(cfg.forward.orientation,'forward.orientation',{'auto','free','fixed','surface-normal'},false);
 cfg.forward.require_fieldtrip = require_logical(cfg.forward.require_fieldtrip,'forward.require_fieldtrip');
+for fieldtripStage = {'headmodel','vol_sens','leadfield'}
+    if ~isstruct(cfg.forward.fieldtrip.(fieldtripStage{1}))
+        error('eegsl:Config:FieldTripOptions','forward.fieldtrip.%s must be a struct.',fieldtripStage{1});
+    end
+end
+if ~isempty(cfg.forward.cache_keys) && ~isstruct(cfg.forward.cache_keys)
+    error('eegsl:Config:ForwardCacheKeys','forward.cache_keys must be a struct or empty.');
+end
 cfg.forward.analytic.prenormal = require_logical(cfg.forward.analytic.prenormal,'forward.analytic.prenormal');
 if ~isempty(cfg.forward.analytic.builder) && ~isa(cfg.forward.analytic.builder,'function_handle')
     error('eegsl:Config:AnalyticBuilder','forward.analytic.builder must be a function handle or empty.');

@@ -3,35 +3,42 @@ function [headmodel, info] = build_headmodel(mesh, conductivity, cfg)
 %   No FEM assembly is implemented here. The SimBio/DUNEuro adapters delegate
 %   to FieldTrip when available; analytic is an explicit fallback seam.
 if nargin < 3, cfg = struct(); end
+reject_legacy_fieldtrip(cfg);
 base = eegsl.default_config();
 if isfield(cfg,'forward'), fcfg = merge_struct(base.forward,cfg.forward); else, fcfg = base.forward; end
 engine = lower(char(fcfg.engine));
 
 validate_mesh(mesh);
+conductivityInfo = struct('tissuelabel',{{}},'values',[]);
 t0 = tic;
 switch engine
     case 'simbio'
+        [conductivity,conductivityInfo] = eegsl.forward.resolve_conductivity(mesh,conductivity);
         require_fieldtrip(fcfg, 'simbio');
-        ftcfg = get_field(cfg,'fieldtrip',struct());
+        ftcfg = get_field(fcfg.fieldtrip,'headmodel',struct());
         ftcfg.method = 'simbio';
         ftcfg.conductivity = conductivity;
         headmodel = call_prepare_headmodel(mesh,ftcfg);
     case 'duneuro'
+        [conductivity,conductivityInfo] = eegsl.forward.resolve_conductivity(mesh,conductivity);
         require_fieldtrip(fcfg, 'duneuro');
-        ftcfg = get_field(cfg,'fieldtrip',struct());
+        ftcfg = get_field(fcfg.fieldtrip,'headmodel',struct());
         ftcfg.method = 'duneuro';
         ftcfg.conductivity = conductivity;
         headmodel = call_prepare_headmodel(mesh,ftcfg);
     case 'analytic'
-        headmodel = build_analytic_adapter(mesh,conductivity,cfg);
+        analyticCfg = merge_struct(base.forward.analytic, ...
+            get_field(fcfg,'analytic',struct()));
+        headmodel = build_analytic_adapter(mesh,conductivity,cfg,analyticCfg);
     otherwise
         error('eegsl:Forward:Engine','Unsupported engine: %s.',engine);
 end
 elapsed = toc(t0);
 info = eegsl.common.provenance('headmodel',struct( ...
     'engine',engine,'elapsed_seconds',elapsed, ...
-    'conductivity',conductivity,'mesh_id',eegsl.common.content_hash(mesh), ...
-    'cache_keys',cache_keys(fcfg)));
+    'conductivity',conductivityInfo,'conductivity_values',conductivity, ...
+    'mesh_id',eegsl.common.content_hash(mesh), ...
+    'cache_keys',cache_keys(fcfg),'conductivity_info',conductivityInfo));
 end
 
 function headmodel = call_prepare_headmodel(mesh,cfg)
@@ -41,10 +48,19 @@ end
 headmodel = ft_prepare_headmodel(cfg,mesh);
 end
 
-function headmodel = build_analytic_adapter(mesh,conductivity,cfg)
+function headmodel = build_analytic_adapter(mesh,conductivity,cfg,analyticCfg)
 % Explicit adapter-only representation; a numerical analytic solver is not
 % silently substituted for FEM. A caller may provide a prepared headmodel.
-if isfield(cfg,'analytic_headmodel') && ~isempty(cfg.analytic_headmodel)
+hasLegacy = isfield(cfg,'analytic_headmodel') && ~isempty(cfg.analytic_headmodel);
+if hasLegacy
+    warning('eegsl:Forward:LegacyAnalyticConfig', ...
+        'Use cfg.forward.analytic.headmodel instead of cfg.analytic_headmodel.');
+end
+if ~isempty(analyticCfg.headmodel)
+    headmodel = analyticCfg.headmodel;
+    return;
+end
+if hasLegacy
     headmodel = cfg.analytic_headmodel;
     return;
 end
@@ -81,5 +97,11 @@ function out = merge_struct(base,override)
 out = base;
 for f = fieldnames(override)'
     out.(f{1}) = override.(f{1});
+end
+end
+function reject_legacy_fieldtrip(cfg)
+if isstruct(cfg) && isfield(cfg,'fieldtrip')
+    error('eegsl:Forward:LegacyFieldTripConfig', ...
+        'Move cfg.fieldtrip options to cfg.forward.fieldtrip.headmodel, .vol_sens, or .leadfield.');
 end
 end
