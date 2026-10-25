@@ -14,7 +14,7 @@ metadata=normalize_metadata(metadata); metadata.configuration_hash=eegsl.common.
 cache_info=struct('kind',char(kind),'key',char(key),'schema_version',cfg.cache.version, ...
     'created_utc',utc_stamp(),'matlab_version',version,'artifact_class',class(artifact), ...
     'metadata_hash',eegsl.common.content_hash(metadata)); %#ok<NASGU>
-tmp=fullfile(folder,[tempname(folder) '.tmp-' char(java.util.UUID.randomUUID()) '.mat']);
+tmp=[tempname(folder) '.tmp-' char(java.util.UUID.randomUUID()) '.mat'];
 cleanup=onCleanup(@()delete_if_exists(tmp)); %#ok<NASGU>
 try
     save(tmp,'artifact','metadata','cache_info','-mat');
