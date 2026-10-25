@@ -42,6 +42,8 @@ if ~isempty(cfg.reference.projector), validate_square_matrix(cfg.reference.proje
 
 cfg.noise.route = normalize_enum(cfg.noise.route,'noise.route',{'','baseline','emptyroom','diagonal','uniform_null'},false);
 cfg.noise.tol = positive_scalar(cfg.noise.tol,'noise.tol');
+cfg.noise.sigma_method = normalize_enum(cfg.noise.sigma_method, ...
+    'noise.sigma_method',{'closed_form','bisection'},false);
 cfg.noise.max_iterations = positive_integer(cfg.noise.max_iterations,'noise.max_iterations');
 cfg.noise.reg.method = normalize_enum(cfg.noise.reg.method,'noise.reg.method',{'none','shrinkage','loading'},false);
 if ~isempty(cfg.noise.reg.value), cfg.noise.reg.value = nonnegative_scalar(cfg.noise.reg.value,'noise.reg.value'); end
