@@ -88,6 +88,9 @@ cfg.normalization.enabled = require_logical(cfg.normalization.enabled,'normaliza
 cfg.normalization.subsamples = positive_integer(cfg.normalization.subsamples,'normalization.subsamples');
 cfg.normalization.minimum_samples = positive_integer(cfg.normalization.minimum_samples,'normalization.minimum_samples');
 cfg.normalization.stable_state_fraction_warning = bounded_scalar(cfg.normalization.stable_state_fraction_warning,'normalization.stable_state_fraction_warning',0,1);
+cfg.normalization.stable_state_z = positive_scalar(cfg.normalization.stable_state_z,'normalization.stable_state_z');
+cfg.normalization.mad_scale = positive_scalar(cfg.normalization.mad_scale,'normalization.mad_scale');
+if ~isempty(cfg.normalization.seed), cfg.normalization.seed = nonnegative_integer(cfg.normalization.seed,'normalization.seed'); end
 cfg.normalization.scale_floor = positive_scalar(cfg.normalization.scale_floor,'normalization.scale_floor');
 if ~isempty(cfg.normalization.window), validate_window(cfg.normalization.window,'normalization.window'); end
 

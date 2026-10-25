@@ -38,9 +38,13 @@ if isempty(nsz), nsz = min(size(spN,2),max(1000,round(size(spN,2)/2))); end
 nsz = min(size(spN,2),max(1,round(nsz)));
 mu = zeros(size(spN,1),1); sigma = zeros(size(spN,1),1);
 muSamples = zeros(size(spN,1),ns); sigmaSamples = zeros(size(spN,1),ns);
-rngState = rng; cleanup = onCleanup(@()rng(rngState)); %#ok<NASGU>
+seed = get_or(ncfg,'seed',[]);
+if isempty(seed), seed = get_or(cfg,'seed',[]); end
+if isempty(seed), seed = 0; end
+rs = RandStream('twister','Seed',double(seed));
+madScale = double(get_or(ncfg,'mad_scale',1));
 for k = 1:ns
-    idx = randperm(size(spN,2),nsz);
+    idx = randperm(rs,size(spN,2),nsz);
     sample = spN(:,idx);
     for p = 1:size(sample,1)
         values = sort(sample(p,:));
@@ -51,7 +55,7 @@ for k = 1:ns
         end
         if isempty(below), below = values; end
         muSamples(p,k) = modeEstimate;
-        sigmaSamples(p,k) = mad_compat(below);
+        sigmaSamples(p,k) = madScale*median(abs(below-modeEstimate));
     end
 end
 mu = median(muSamples,2);
@@ -60,7 +64,8 @@ floorValue = get_or(ncfg,'scale_floor',eps);
 zeroScale = sigma <= floorValue | ~isfinite(sigma);
 sigma(zeroScale) = 1;
 
-stableFraction = max(abs(spN - mu) <= max(sigma,eps),[],2);
+z = (spN-mu)./sigma;
+stableFraction = mean(z > get_or(ncfg,'stable_state_z',3),2);
 shortWindow = size(X,2) < get_or(ncfg,'minimum_samples',1000);
 stableLimit = get_or(ncfg,'stable_state_fraction_warning',0.5);
 stableWarning = any(stableFraction > stableLimit);
@@ -84,18 +89,23 @@ op.n_points = size(spN,1);
 op.n_samples = size(X,2);
 op.subsamples = ns;
 op.subsample_size = nsz;
+op.seed = double(seed);
+op.mad_scale = madScale;
 op.zero_scale_points = find(zeroScale);
 op.baseline_window = get_or(ncfg,'window',[]);
 op.provenance = eegsl.common.provenance('normalization',struct( ...
     'n_points',op.n_points,'n_samples',op.n_samples, ...
     'orientation',orientation,'subsamples',ns,'subsample_size',nsz, ...
-    'short_window',shortWindow,'stable_state_warning',stableWarning));
+    'short_window',shortWindow,'stable_state_warning',stableWarning, ...
+    'stable_fraction',stableFraction, ...
+    'stable_points',find(stableFraction>stableLimit),'seed',op.seed));
 op.operator_id = eegsl.common.cache_key('normalization',mu,sigma,op.exponent, ...
-    op.shift,op.scale,orientation);
+    op.shift,op.scale,orientation,op.seed);
 
 info = op.provenance;
 info.operator_id = op.operator_id;
 info.stable_fraction = stableFraction;
+info.stable_points = find(stableFraction>stableLimit);
 info.zero_scale_points = op.zero_scale_points;
 end
 
@@ -120,13 +130,6 @@ edges = linspace(min(lower),max(lower),nbins+1);
 counts = histcounts(lower,edges);
 [~,bin] = max(counts);
 m = (edges(bin)+edges(bin+1))/2;
-end
-
-function m = mad_compat(x)
-x = x(isfinite(x));
-if isempty(x), m = 0; return; end
-med = median(x);
-m = median(abs(x-med));
 end
 
 function value = get_or(s,name,default)
