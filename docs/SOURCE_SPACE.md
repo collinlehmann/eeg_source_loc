@@ -50,3 +50,11 @@ about 3000 points. The appropriate target should be revised using montage
 validation. Whether the mask centroid should be replaced by an optimal
 mid-sagittal plane estimator remains open. Atlas-derived approximate targets
 must not be reported as verified STN or GPi/GPe segmentation.
+
+For `cfg.source.mode = 'cortical'`, the default
+`cfg.source.cortical_representation = 'volume'` expects the caller to provide a
+cortical-only mask and retains free orientation. The provisional `'surface'`
+representation instead requires `anatomy.surface.pos`, `.tri`, and `.nrm`,
+normalizes the normals, and emits a surface-normal source model without
+volumetric `dim` or `transform` fields. Confirmation of this representation
+choice remains open.

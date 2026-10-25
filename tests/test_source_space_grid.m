@@ -22,7 +22,7 @@ anatomy = fixture(mask,[61 61 61]);
 sm = eegsl.source.build_source_space(anatomy,[],struct('source',struct('spacing_mm',4)));
 tests.fieldtrip_shape = prod(sm.dim) == size(sm.pos,1) && ...
     numel(sm.inside) == size(sm.pos,1) && numel(sm.label) == size(sm.pos,1);
-ix = randperm(size(sm.pos,1),min(10,size(sm.pos,1)));
+ix = unique(round(linspace(1,size(sm.pos,1),min(10,size(sm.pos,1)))));
 [a,b,c] = ind2sub(sm.dim,ix);
 expected = sm.pos(sub2ind(sm.dim,a,b,c),:)';
 actual = sm.transform*[a(:)';b(:)';c(:)';ones(1,numel(ix))];
@@ -51,12 +51,21 @@ niftiSpace = eegsl.source.build_source_space(nifti,[], ...
 tests.nifti_convention = isequal(ftSpace.pos,niftiSpace.pos);
 
 tests.missing_unit = error_id(rmfield(anatomy,'unit'),'eegsl:Source:MissingUnit');
-tests.missing_coordsys = error_id(setfield(anatomy,'coordsys',''), ...
-    'eegsl:Source:MissingCoordsys'); %#ok<SFLD>
+missingCoordsys = anatomy; missingCoordsys.coordsys = '';
+tests.missing_coordsys = error_id(missingCoordsys,'eegsl:Source:MissingCoordsys');
 badCoordsys = anatomy; badCoordsys.coordsys = 'unknown';
 tests.coordsys_not_lr = error_id(badCoordsys,'eegsl:Source:CoordsysNotLR');
 badConvention = anatomy; badConvention.transform_convention = 'other';
 tests.transform_convention = error_id(badConvention,'eegsl:Source:TransformConvention');
+
+surfaceAnatomy = struct('unit','mm','coordsys','ras','surface', ...
+    struct('pos',randn(4,3),'tri',[1 2 3;2 3 4],'nrm',randn(4,3)));
+surfaceCfg = struct('source',struct('mode','cortical','cortical_representation','surface'));
+surfaceSpace = eegsl.source.build_source_space(surfaceAnatomy,[],surfaceCfg);
+tests.surface_representation = ~isfield(surfaceSpace,'dim') && ...
+    ~isfield(surfaceSpace,'transform') && all(abs(vecnorm(surfaceSpace.nrm,2,2)-1)<1e-12);
+badSurface = surfaceAnatomy; badSurface.surface = rmfield(badSurface.surface,'nrm');
+tests.surface_missing_normals = error_id(badSurface,'eegsl:Source:MissingNormals',surfaceCfg);
 
 assert_test_checks(tests,'test_source_space_grid');
 tests.all_passed = true;
@@ -76,11 +85,11 @@ mask = ((i-c(1))/radii(1)).^2+((j-c(2))/radii(2)).^2+ ...
     ((k-c(3))/radii(3)).^2 <= 1;
 end
 
-function caught = error_id(anatomy,id)
+function caught = error_id(anatomy,id,cfg)
+if nargin < 3, cfg = struct('source',struct('spacing_mm',5)); end
 caught = false;
 try
-    eegsl.source.build_source_space(anatomy,[], ...
-        struct('source',struct('spacing_mm',5)));
+    eegsl.source.build_source_space(anatomy,[],cfg);
 catch err
     caught = strcmp(err.identifier,id);
 end

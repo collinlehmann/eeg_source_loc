@@ -14,6 +14,20 @@ orientation = resolve_orientation(sourcemodel,fcfg);
 if ~isfield(sourcemodel,'pos')
     error('eegsl:Forward:SourceModel','sourcemodel.pos is required.');
 end
+if strcmp(orientation,'surface-normal') && ...
+        (~isfield(sourcemodel,'nrm') || isempty(sourcemodel.nrm))
+    error('eegsl:Forward:MissingNormals','surface-normal orientation requires sourcemodel.nrm.');
+end
+analyticCfg = base.forward.analytic;
+if isfield(cfg,'forward') && isfield(cfg.forward,'analytic')
+    analyticCfg = merge_struct(analyticCfg,cfg.forward.analytic);
+end
+if isfield(cfg,'analytic_leadfield') && ~isempty(cfg.analytic_leadfield)
+    analyticCfg.leadfield = cfg.analytic_leadfield;
+end
+if isfield(cfg,'analytic_builder') && isa(cfg.analytic_builder,'function_handle')
+    analyticCfg.builder = cfg.analytic_builder;
+end
 
 t0 = tic;
 switch engine
@@ -27,26 +41,29 @@ switch engine
         ftcfg.elec = elec;
         ftcfg.vol = linked;
         ftcfg.reducerank = get_field(ftcfg,'reducerank','no');
-        if strcmp(orientation,'free')
-            ftcfg.fixedori = 'no';
-        else
-            ftcfg.fixedori = 'yes';
-        end
+        ftcfg.fixedori = 'no';
         leadfield = ft_prepare_leadfield(ftcfg);
     case 'analytic'
-        if isfield(cfg,'analytic_leadfield') && ~isempty(cfg.analytic_leadfield)
-            leadfield = cfg.analytic_leadfield;
-        elseif isfield(cfg,'analytic_builder') && isa(cfg.analytic_builder,'function_handle')
-            leadfield = cfg.analytic_builder(linked,elec,sourcemodel,cfg);
+        if ~isempty(analyticCfg.leadfield)
+            leadfield = analyticCfg.leadfield;
+        elseif isa(analyticCfg.builder,'function_handle')
+            leadfield = analyticCfg.builder(linked,elec,sourcemodel,cfg);
         else
             error('eegsl:Forward:AnalyticAdapter', ...
-                'Analytic leadfield requires cfg.analytic_leadfield or cfg.analytic_builder.');
+                'Analytic leadfield requires cfg.forward.analytic.leadfield or builder.');
         end
     otherwise
         error('eegsl:Forward:Engine','Unsupported engine: %s.',engine);
 end
+if strcmp(orientation,'surface-normal')
+    [leadfield,normalApplied] = project_normals(leadfield,sourcemodel, ...
+        strcmp(engine,'analytic'),analyticCfg.prenormal);
+else
+    normalApplied = false;
+end
 elapsed = toc(t0);
 leadfield.orientation = orientation;
+if strcmp(orientation,'surface-normal'), leadfield.normals_applied = normalApplied; end
 leadfield.source_space_id = get_source_id(sourcemodel);
 keys = cache_keys(fcfg);
 if isfield(keys,'leadfield_key')
@@ -77,6 +94,65 @@ if ~ismember(orientation,{'free','surface-normal','fixed'})
     error('eegsl:Forward:Orientation','Unsupported orientation: %s.',orientation);
 end
 if strcmp(orientation,'fixed'), orientation = 'surface-normal'; end
+end
+function [lf,applied] = project_normals(lf,sourcemodel,isAnalytic,prenormal)
+nloc = size(sourcemodel.pos,1);
+inside = true(nloc,1);
+if isfield(sourcemodel,'inside') && ~isempty(sourcemodel.inside)
+    inside = logical(sourcemodel.inside(:));
+    if numel(inside) ~= nloc
+        error('eegsl:Forward:InsideShape','sourcemodel.inside must match sourcemodel.pos.');
+    end
+end
+nrm = double(sourcemodel.nrm);
+if ~isequal(size(nrm),[nloc 3])
+    error('eegsl:Forward:MissingNormals','sourcemodel.nrm must be N-by-3.');
+end
+normalLength = sqrt(sum(nrm.^2,2));
+if any(normalLength(inside)<=eps)
+    error('eegsl:Forward:MissingNormals','Inside source normals must be nonzero.');
+end
+nrm(inside,:) = nrm(inside,:)./normalLength(inside);
+if isstruct(lf) && isfield(lf,'leadfield'), value = lf.leadfield; else, value = lf; end
+if iscell(value)
+    if numel(value) ~= nloc
+        error('eegsl:Forward:AmbiguousBlocks','Lead-field blocks do not match source locations.');
+    end
+    blocks = value;
+    for i = find(inside(:))'
+        H = double(blocks{i});
+        if isempty(H), error('eegsl:Forward:AmbiguousBlocks','An inside lead-field block is empty.'); end
+        if size(H,2) == 3
+            blocks{i} = H*nrm(i,:)';
+        elseif size(H,2) == 1 && isAnalytic && prenormal
+            blocks{i} = H;
+        else
+            error('eegsl:Forward:AmbiguousBlocks', ...
+                'Expected three free-orientation columns, or analytic pre-normalized blocks.');
+        end
+    end
+    if isstruct(lf), lf.leadfield = blocks; else, lf = struct('leadfield',{blocks}); end
+elseif isnumeric(value) && ismatrix(value)
+    if size(value,2) == 3*nloc
+        blocks = cell(1,nloc);
+        for i = 1:nloc
+            cols = 3*i-2:3*i;
+            if inside(i), blocks{i} = value(:,cols)*nrm(i,:)'; else, blocks{i} = []; end
+        end
+        if all(inside), projected = cat(2,blocks{:}); else, projected = blocks; end
+    elseif size(value,2) == nloc && isAnalytic && prenormal
+        blocks = arrayfun(@(i)value(:,i),1:nloc,'UniformOutput',false);
+        blocks(~inside) = {[]};
+        if all(inside), projected = value; else, projected = blocks; end
+    else
+        error('eegsl:Forward:AmbiguousBlocks', ...
+            'Expected three free-orientation columns per source location.');
+    end
+    if isstruct(lf), lf.leadfield = projected; else, lf = struct('leadfield',projected); end
+else
+    error('eegsl:Forward:AmbiguousBlocks','Unsupported lead-field block representation.');
+end
+applied = true;
 end
 function id = get_source_id(s)
 if isfield(s,'source_space_id')

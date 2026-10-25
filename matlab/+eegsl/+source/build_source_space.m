@@ -1,6 +1,12 @@
 function [sourcemodel, info] = build_source_space(anatomy, elec, cfg)
 %BUILD_SOURCE_SPACE Construct a regular world-coordinate source lattice.
 if nargin < 3, cfg = struct(); end
+base = eegsl.default_config();
+if isfield(cfg,'source'), sourceCfg = merge_struct(base.source,cfg.source); else, sourceCfg = base.source; end
+if strcmp(sourceCfg.mode,'cortical') && strcmp(sourceCfg.cortical_representation,'surface')
+    [sourcemodel,info] = build_surface_source(anatomy,elec,sourceCfg);
+    return;
+end
 if ~isstruct(anatomy) || ~isfield(anatomy,'mask')
     error('eegsl:Source:MissingMask','anatomy.mask is required.');
 end
@@ -21,8 +27,6 @@ end
 if ~isfield(anatomy,'unit') || isempty(anatomy.unit)
     error('eegsl:Source:MissingUnit','anatomy.unit is required.');
 end
-base = eegsl.default_config();
-if isfield(cfg,'source'), sourceCfg = merge_struct(base.source,cfg.source); else, sourceCfg = base.source; end
 if ~isempty(sourceCfg.spacing_mm)
     if ~isscalar(sourceCfg.spacing_mm)
         error('eegsl:Source:AnisotropicSpacing','source.spacing_mm must be scalar.');
@@ -91,6 +95,9 @@ dim = [numel(unique_axis(pos(:,1))),numel(unique_axis(pos(:,2))),numel(unique_ax
 mirror = mirror_indices(dim);
 unpaired = find(inside & ~inside(mirror));
 [labels,tiers,provenance] = point_labels(inside,ijk,mask,anatomy);
+if strcmp(sourceCfg.mode,'cortical')
+    provenance(inside) = {'caller_supplied_cortical_mask'};
+end
 
 sourcemodel = struct('pos',pos,'inside',logical(inside(:)),'dim',dim, ...
     'transform',gridTransform,'unit',char(anatomy.unit), ...
@@ -102,6 +109,9 @@ sourcemodel.source_space_id = eegsl.common.content_hash(struct( ...
     'provenance',{provenance},'mode',sourceCfg.mode, ...
     'symmetry_mode',sourceCfg.symmetry_mode,'unit',sourcemodel.unit, ...
     'coordsys',sourcemodel.coordsys));
+if strcmp(sourceCfg.mode,'cortical')
+    sourcemodel.cortical_mask_supplied = true;
+end
 
 midsagittal = struct('value',NaN,'method','not_used');
 if sourceCfg.symmetry
@@ -121,6 +131,7 @@ info = eegsl.common.provenance('source_space',struct( ...
     'symmetry_mode',sourceCfg.symmetry_mode,'midsagittal',midsagittal, ...
     'unpaired_points',unpaired,'neighbor_continuity',sourceCfg.neighbor_continuity, ...
     'orientation',sourcemodel.orientation,'source_space_id',sourcemodel.source_space_id));
+if strcmp(sourceCfg.mode,'cortical'), info.cortical_mask_supplied = true; end
 info.midsagittal = midsagittal;
 info.unpaired_points = unpaired;
 info.spacing_iterations = iterations;
@@ -245,6 +256,47 @@ end
 end
 function value = getf(s,name,default)
 if isfield(s,name), value=s.(name); else, value=default; end
+end
+function [sourcemodel,info] = build_surface_source(anatomy,elec,sourceCfg)
+if ~isstruct(anatomy) || ~isfield(anatomy,'surface') || ~isstruct(anatomy.surface)
+    error('eegsl:Source:MissingSurface','anatomy.surface with pos, tri, and nrm is required.');
+end
+surface = anatomy.surface;
+if ~isfield(surface,'nrm') || isempty(surface.nrm)
+    error('eegsl:Source:MissingNormals','Surface-normal sources require anatomy.surface.nrm.');
+end
+if ~isfield(surface,'pos') || ~isfield(surface,'tri')
+    error('eegsl:Source:SurfaceFormat','anatomy.surface.pos and tri are required.');
+end
+if ~isfield(anatomy,'unit') || isempty(anatomy.unit)
+    error('eegsl:Source:MissingUnit','anatomy.unit is required.');
+end
+pos = double(surface.pos);
+nrm = double(surface.nrm);
+if size(pos,2) ~= 3 || ~isequal(size(nrm),size(pos)) || any(~isfinite(pos(:))) || any(~isfinite(nrm(:)))
+    error('eegsl:Source:SurfaceFormat','Surface positions and normals must be finite N-by-3 arrays.');
+end
+norms = sqrt(sum(nrm.^2,2));
+if any(norms <= eps), error('eegsl:Source:SurfaceNormals','Surface normals must be nonzero.'); end
+nrm = nrm./norms;
+n = size(pos,1);
+labels = repmat({'cortex'},n,1);
+tiers = repmat({'cortical'},n,1);
+provenance = repmat({'surface'},n,1);
+if isfield(surface,'label') && numel(surface.label)==n, labels=surface.label(:); end
+sourcemodel = struct('pos',pos,'tri',surface.tri,'nrm',nrm, ...
+    'inside',true(n,1),'unit',char(anatomy.unit), ...
+    'coordsys',getf(anatomy,'coordsys',''),'label',{labels}, ...
+    'source_tier',{tiers},'source_provenance',{provenance}, ...
+    'orientation','surface-normal');
+sourcemodel.source_space_id = eegsl.common.content_hash(struct( ...
+    'pos',pos,'inside',sourcemodel.inside,'nrm',nrm, ...
+    'labels',{labels},'tiers',{tiers},'mode',sourceCfg.mode, ...
+    'unit',sourcemodel.unit,'coordsys',sourcemodel.coordsys));
+info = eegsl.common.provenance('source_space',struct('mode',sourceCfg.mode, ...
+    'representation','surface','nchan',infer_channel_count(elec), ...
+    'npoints',n,'ninside',n,'orientation','surface-normal', ...
+    'source_space_id',sourcemodel.source_space_id));
 end
 function out = merge_struct(base,override)
 out=base;

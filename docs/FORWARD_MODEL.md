@@ -24,3 +24,10 @@ before invoking the adapters to attach those stable identifiers to their outputs
 `link_sensors` brackets the transfer stage with wall-clock timing because it is the dominant FEM cost. No custom FEM assembly and no per-source FEM solves are implemented.
 
 FieldTrip is required for the SimBio and DUNEuro paths. Missing dependencies produce explicit errors. The adapter tests use only the analytic path and synthetic structs.
+
+FEM forward calculations always request free orientation from FieldTrip
+(`fixedori='no'`). For `surface-normal`, the adapter requires source normals and
+projects each free-orientation block as `H_i*n_i'`; FieldTrip's fixed-orientation
+maximum-power selection is not used. An analytic adapter that returns already
+projected one-column blocks must explicitly set
+`cfg.forward.analytic.prenormal = true`.

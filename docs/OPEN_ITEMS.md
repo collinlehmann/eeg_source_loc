@@ -15,5 +15,6 @@ The following remain intentionally configurable or adapter-only rather than sile
 - Uniform-null scaling for fixed-orientation lead fields; confirm against Moiseev 2025.
 - Whether the source-grid symmetry plane should use an optimal sagittal-plane estimate instead of the mask centroid.
 - Validate the provisional electrode-density heuristic; its clamp yields about 3000 points for montages up to 250 channels.
+- Confirm the proposed cortical-only representation: volumetric mask with free orientation or surface mesh with surface-normal orientation.
 
 The implementation must expose these as configuration or explicit adapter seams. It must not claim STN-specific or GPi-versus-GPe resolution from standard T1 imaging.
