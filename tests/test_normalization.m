@@ -41,6 +41,10 @@ trialData = struct('trial',{{X(:,1:500),X(:,501:1000)}});
 trialOutput = eegsl.normalization.apply_normalization(op,trialData);
 tests.trial_roundtrip = isfield(trialOutput,'trial') && ~isfield(trialOutput,'avg') && ...
     numel(trialOutput.trial)==2 && isequal(size(trialOutput.trial{2}),[40 500]);
+sampleData = struct('trial',{{X(:,1:500),X(:,501:1000)}}, ...
+    'avg',zeros(120,400),'data',zeros(120,700));
+sampleOp = eegsl.normalization.build_normalization(sampleData,cfg);
+tests.trial_samples_preferred = sampleOp.n_samples==1000;
 
 cfg.normalization.enabled = false;
 caught = false;

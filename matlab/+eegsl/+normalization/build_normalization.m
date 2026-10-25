@@ -111,11 +111,11 @@ end
 
 function X = extract_samples(x)
 if isnumeric(x), X = x; return; end
-if isstruct(x) && isfield(x,'data'), X = x.data; return; end
-if isstruct(x) && isfield(x,'avg'), X = x.avg; return; end
 if isstruct(x) && isfield(x,'trial') && iscell(x.trial)
     X = [];
     for k = 1:numel(x.trial), X = [X,double(x.trial{k})]; end %#ok<AGROW>
+elseif isstruct(x) && isfield(x,'avg'), X = x.avg;
+elseif isstruct(x) && isfield(x,'data'), X = x.data;
 else, X = []; end
 end
 
