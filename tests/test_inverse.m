@@ -91,6 +91,16 @@ catch err
 end
 tests.dominant_not_implemented = caught;
 
+blocks = {randn(rs,8,3),[],randn(rs,8,3),randn(rs,8,3),[]};
+lfInside = struct('leadfield',{blocks},'inside',[1 0 1 1 0], ...
+    'orientation','free','leadfield_id','inside-lf');
+opInside = eegsl.inverse.build_inverse(lfInside,eye(8),cfg2);
+tests.inside_blocks = size(opInside.matrix,1) == 9 && ...
+    isequal(opInside.inside_index,[1 3 4]) && isequal(opInside.block_sizes,[3 3 3]);
+[Ginside,~] = eegsl.noise.geometry_term(lfInside,[]);
+Gexpected = eegsl.noise.geometry_term({blocks{1},blocks{3},blocks{4}},[]);
+tests.geometry_inside = norm(Ginside-Gexpected,'fro') < 1e-12;
+
 assert_test_checks(tests,'test_inverse');
 tests.all_passed = true;
 end

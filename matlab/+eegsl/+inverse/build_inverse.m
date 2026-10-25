@@ -42,7 +42,8 @@ operator.leadfield_id = get_id(leadfield,'leadfield_id');
 operator.source_space_id = get_id(leadfield,'source_space_id');
 operator.noise_covariance_id = eegsl.common.content_hash(N);
 operator.block_sizes = lfmeta.block_sizes;
-operator.inside_index = 1:lfmeta.n_sources;
+operator.inside_index = lfmeta.inside_index;
+operator.empty_indices = lfmeta.empty_indices;
 operator.label = get_labels(leadfield);
 operator.metadata = methodInfo;
 operator.apply_is_silent = true;
@@ -121,40 +122,58 @@ else
     value = leadfield;
 end
 if iscell(value)
-    blocks = value;
-    if isempty(blocks), error('eegsl:Inverse:LeadfieldFormat','Leadfield blocks cannot be empty.'); end
-    nchan = size(blocks{1},1);
-    L = zeros(nchan,sum(cellfun(@(x)size(x,2),blocks)));
-    cursor = 1;
-    for k = 1:numel(blocks)
-        block = double(blocks{k});
-        if size(block,1) ~= nchan, error('eegsl:Inverse:LeadfieldChannels','Inconsistent leadfield channels.'); end
-        stop = cursor + size(block,2)-1;
-        L(:,cursor:stop) = block;
-        cursor = stop+1;
-    end
-    blockSizes = cellfun(@(x)size(x,2),blocks);
-    meta = struct('n_sources',numel(blocks),'blocks',{blocks},'block_sizes',blockSizes);
+    allBlocks = value;
 elseif isnumeric(value) && ismatrix(value)
-    L = double(value);
     orientation = get_orientation(leadfield);
     switch lower(orientation)
         case 'free'
-            if mod(size(L,2),3) ~= 0
-                error('eegsl:Inverse:LeadfieldColumns', ...
-                    'Free-orientation leadfield columns must be divisible by three.');
+            if mod(size(value,2),3) ~= 0
+                error('eegsl:Inverse:LeadfieldColumns','Free-orientation leadfield columns must be divisible by three.');
             end
-            blockSizes = 3*ones(1,size(L,2)/3);
+            allBlocks = arrayfun(@(k)value(:,3*k-2:3*k),1:size(value,2)/3,'UniformOutput',false);
         case {'scalar','fixed','surface-normal'}
-            blockSizes = ones(1,size(L,2));
+            allBlocks = arrayfun(@(k)value(:,k),1:size(value,2),'UniformOutput',false);
         otherwise
-            error('eegsl:Inverse:AmbiguousOrientation', ...
-                'Numeric leadfields require an explicit orientation field.');
+            error('eegsl:Inverse:AmbiguousOrientation','Numeric leadfields require an explicit orientation field.');
     end
-    meta = struct('n_sources',numel(blockSizes),'blocks',{{L}}, ...
-        'block_sizes',blockSizes);
 else
     error('eegsl:Inverse:LeadfieldFormat','Unsupported leadfield format.');
+end
+inside = get_inside(leadfield,numel(allBlocks));
+emptyIndices = [];
+if isempty(inside)
+    emptyIndices = find(cellfun(@isempty,allBlocks));
+    selected = find(~cellfun(@isempty,allBlocks));
+else
+    selected = find(inside);
+end
+blocks = allBlocks(selected);
+if any(cellfun(@isempty,blocks))
+    error('eegsl:Leadfield:EmptyInsideBlock','An inside source point has an empty lead-field block.');
+end
+if isempty(blocks), error('eegsl:Inverse:LeadfieldFormat','No non-empty inside leadfield blocks.'); end
+nchan = size(blocks{1},1);
+blockSizes = cellfun(@(x)size(x,2),blocks);
+L = zeros(nchan,sum(blockSizes));
+cursor = 1;
+for k = 1:numel(blocks)
+    block = double(blocks{k});
+    if size(block,1) ~= nchan, error('eegsl:Inverse:LeadfieldChannels','Inconsistent leadfield channels.'); end
+    stop = cursor+size(block,2)-1;
+    L(:,cursor:stop) = block;
+    cursor = stop+1;
+end
+meta = struct('n_sources',numel(blocks),'blocks',{blocks}, ...
+    'block_sizes',blockSizes,'inside_index',selected,'empty_indices',emptyIndices);
+end
+
+function inside = get_inside(leadfield,nloc)
+inside = [];
+if isstruct(leadfield) && isfield(leadfield,'inside') && ~isempty(leadfield.inside)
+    if numel(leadfield.inside) ~= nloc
+        error('eegsl:Inverse:InsideShape','Leadfield inside vector does not match source locations.');
+    end
+    inside = logical(leadfield.inside(:));
 end
 end
 

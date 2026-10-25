@@ -17,6 +17,10 @@ Free-orientation estimates remain component-valued. `operator.recommended_reduct
 records the method-specific suggestion (`norm` for the implemented wMNE family,
 `dominant` for LCMV); a non-empty `cfg.inverse.reduction` overrides it.
 `operator.label` stores the lead-field channel labels for apply-time order checks.
+When a FieldTrip lead field supplies `inside`, only inside blocks are retained;
+operator rows follow ascending `inside_index` and the per-location
+`block_sizes`. Empty outside cells are skipped when no inside mask is supplied,
+while an empty block marked inside is rejected.
 `apply_inverse` never reduces source components. Use
 `eegsl.inverse.reduce_source` as a separate reduction utility; `dominant` currently
 errors until a frozen per-location orientation can be computed at build time.
