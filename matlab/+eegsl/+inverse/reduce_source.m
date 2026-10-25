@@ -3,6 +3,12 @@ function [scalar, mode] = reduce_source(source3d, mode)
 %   source3d may be components-by-time or a FieldTrip-like source result.
 if nargin < 2 || isempty(mode), mode = 'norm'; end
 mode = lower(char(mode));
+if strcmp(mode,'dominant')
+    error('eegsl:Inverse:DominantNotImplemented', ...
+        ['dominant-orientation reduction requires a frozen per-location orientation ' ...
+         'computed at build time (SVD of the per-location source covariance over the ' ...
+         'representative window); not yet implemented.']);
+end
 if isnumeric(source3d)
     X = source3d;
     if strcmp(mode,'vector'), scalar = X; else, scalar = reduce_matrix(X,mode); end
@@ -20,10 +26,6 @@ B = reshape(X,3,n,[]);
 switch mode
     case 'norm'
         y = squeeze(sqrt(sum(abs(B).^2,1)));
-    case 'dominant'
-        % Dominant orientation requires a source covariance; in this
-        % dependency-free reduction use the maximum component magnitude.
-        y = squeeze(max(abs(B),[],1));
     otherwise
         error('eegsl:Inverse:ReductionMode','Unsupported reduction mode: %s.',mode);
 end
