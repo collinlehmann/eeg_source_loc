@@ -1,19 +1,25 @@
 function info = validate_petra_config(cfg)
-%VALIDATE_PETRA_CONFIG Validate explicit PETRA adapter configuration.
+%VALIDATE_PETRA_CONFIG Resolve canonical or legacy PETRA configuration.
 if nargin < 1 || isempty(cfg), cfg = struct(); end
-info = struct('enabled',get_or(cfg,'enabled',false), ...
-    'allow_fallback',get_or(cfg,'allow_fallback',true), ...
-    'registration_backend',get_or(cfg,'registration_backend','adapter'), ...
-    'segmentation_backend',get_or(cfg,'segmentation_backend','adapter'));
-if info.enabled
-    if ~isfield(cfg,'registration_callback') || ~isa(cfg.registration_callback,'function_handle')
-        error('eegsl:PETRA:RegistrationCallback','Enabled PETRA requires registration_callback.');
-    end
-    if ~isfield(cfg,'segmentation_callback') || ~isa(cfg.segmentation_callback,'function_handle')
-        error('eegsl:PETRA:SegmentationCallback','Enabled PETRA requires segmentation_callback.');
-    end
+base=eegsl.default_config().petra;
+if isstruct(cfg) && isfield(cfg,'petra') && isstruct(cfg.petra)
+    info=merge_struct(base,cfg.petra);
+elseif isstruct(cfg) && any(isfield(cfg, ...
+        {'enabled','registration_callback','segmentation_callback'}))
+    warning('eegsl:PETRA:LegacyConfig','Pass PETRA options in cfg.petra.');
+    info=merge_struct(base,cfg);
+else
+    info=base;
 end
 end
-function value = get_or(s,name,default)
-if isfield(s,name) && ~isempty(s.(name)), value = s.(name); else, value = default; end
+function out=merge_struct(base,override)
+out=base;
+for f=fieldnames(override)'
+    name=f{1};
+    if isstruct(override.(name))&&isfield(out,name)&&isstruct(out.(name))
+        out.(name)=merge_struct(out.(name),override.(name));
+    else
+        out.(name)=override.(name);
+    end
+end
 end
