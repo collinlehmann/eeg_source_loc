@@ -80,13 +80,12 @@ cfg.progress.interval_seconds = nonnegative_scalar(cfg.progress.interval_seconds
 
 cfg.synthetic.n_channels = positive_integer(cfg.synthetic.n_channels,'synthetic.n_channels');
 cfg.synthetic.n_sources = positive_integer(cfg.synthetic.n_sources,'synthetic.n_sources');
-cfg.synthetic.n_time = positive_integer(cfg.synthetic.n_time,'synthetic.n_time');
+cfg.synthetic = validate_synthetic_extension(cfg.synthetic);
 cfg.synthetic.sensor_orientation = normalize_enum(cfg.synthetic.sensor_orientation, ...
     'synthetic.sensor_orientation',{'channels_by_samples','samples_by_channels'},false);
 cfg.synthetic.source_orientation = normalize_enum(cfg.synthetic.source_orientation, ...
     'synthetic.source_orientation',{'components_by_samples','samples_by_components'},false);
 cfg.synthetic.noise_std = nonnegative_scalar(cfg.synthetic.noise_std,'synthetic.noise_std');
-if ~isempty(cfg.synthetic.snr_db), cfg.synthetic.snr_db = positive_scalar(cfg.synthetic.snr_db,'synthetic.snr_db'); end
 if ~isempty(cfg.synthetic.seed), cfg.synthetic.seed = nonnegative_integer(cfg.synthetic.seed,'synthetic.seed'); end
 if ~isfield(cfg.synthetic,'normalization') || ~isstruct(cfg.synthetic.normalization)
     cfg.synthetic.normalization = struct('enabled',false);
@@ -107,6 +106,48 @@ if cfg.synthetic.deep_source_index > cfg.synthetic.n_sources
     error('eegsl:Config:SyntheticDeepSourceRange','synthetic.deep_source_index must be within [1, synthetic.n_sources].');
 end
 cfg.synthetic.cache_prefix = require_text(cfg.synthetic.cache_prefix,'synthetic.cache_prefix');
+end
+
+function s = validate_synthetic_extension(s)
+% n_time and n_samples are aliases; whichever is empty follows the other (default 600).
+s.enabled = synth_logical(s.enabled,'enabled');
+if isempty(s.n_time) && isempty(s.n_samples), s.n_time = 600; end
+if isempty(s.n_time), s.n_time = s.n_samples; end
+if isempty(s.n_samples), s.n_samples = s.n_time; end
+s.n_time = synth_integer(s.n_time,'n_time');
+s.n_samples = synth_integer(s.n_samples,'n_samples');
+if s.n_time ~= s.n_samples
+    error('eegsl:Config:SyntheticDimension','synthetic.n_time (%d) and synthetic.n_samples (%d) must agree.',s.n_time,s.n_samples);
+end
+if ~(isnumeric(s.sample_rate_hz)&&isscalar(s.sample_rate_hz)&&isfinite(s.sample_rate_hz)&&s.sample_rate_hz>0)
+    error('eegsl:Config:SyntheticSampleRate','synthetic.sample_rate_hz must be a positive scalar.');
+end
+s.sample_rate_hz = double(s.sample_rate_hz);
+if ~isempty(s.snr_db)
+    if ~(isnumeric(s.snr_db)&&isscalar(s.snr_db)&&isfinite(s.snr_db))
+        error('eegsl:Config:SyntheticSNR','synthetic.snr_db must be a finite scalar (dB) or empty.');
+    end
+    s.snr_db = double(s.snr_db);
+end
+s.orientation_mode = synth_enum(s.orientation_mode,'orientation_mode',{'free','scalar'},'eegsl:Config:SyntheticOrientationMode');
+s.noise_model = synth_enum(s.noise_model,'noise_model',{'white'},'eegsl:Config:SyntheticNoiseModel');
+s.include_deep_source = synth_logical(s.include_deep_source,'include_deep_source');
+end
+function x = synth_logical(x,name)
+if ~(islogical(x)&&isscalar(x)), error('eegsl:Config:SyntheticLogical','synthetic.%s must be scalar logical.',name); end
+end
+function x = synth_integer(x,name)
+if ~(isnumeric(x)&&isscalar(x)&&isfinite(x)&&x>0&&x==round(x))
+    error('eegsl:Config:SyntheticInteger','synthetic.%s must be a positive integer.',name);
+end
+x = double(x);
+end
+function x = synth_enum(x,name,allowed,id)
+if isstring(x), x = char(x); end
+if ~(ischar(x)&&isrow(x)&&ismember(lower(x),allowed))
+    error(id,'synthetic.%s must be one of: %s.',name,strjoin(allowed,', '));
+end
+x = lower(x);
 end
 
 function out = merge_struct(base,override)
