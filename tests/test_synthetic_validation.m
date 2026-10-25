@@ -51,6 +51,9 @@ try
     eegsl.run_synthetic_validation(corruptCfg);
 catch err
     caught = strcmp(err.identifier,'eegsl:Pipeline:SyntheticSensorDimension');
+    if ~caught
+        fprintf(2,'malformed_dimension_error got %s: %s\n',err.identifier,err.message);
+    end
 end
 tests.malformed_dimension_error = caught;
 
@@ -74,10 +77,8 @@ catch err
 end
 tests.invalid_deep_source = caught;
 
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed
-    error('eegsl:Tests:SyntheticValidationFailure','Synthetic validation test failed.');
-end
+assert_test_checks(tests,'test_synthetic_validation');
+tests.all_passed = true;
 end
 
 function key = stage_key(stages,name)

@@ -23,6 +23,6 @@ catch err
     caught = strcmp(err.identifier,'eegsl:Inverse:NotImplemented');
 end
 tests.explicit_unvalidated = caught;
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed, error('eegsl:Tests:InverseFailure','Inverse test failed.'); end
+assert_test_checks(tests,'test_inverse');
+tests.all_passed = true;
 end

@@ -30,6 +30,6 @@ tests.realtime_epoch_rejected = caught;
 
 q = eegsl.preprocessing.quality_monitor(X,struct());
 tests.quality = q.pass && q.n_channels == 4;
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed, error('eegsl:Tests:PreprocessingFailure','Preprocessing test failed.'); end
+assert_test_checks(tests,'test_preprocessing');
+tests.all_passed = true;
 end

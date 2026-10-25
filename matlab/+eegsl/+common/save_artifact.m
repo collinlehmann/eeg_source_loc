@@ -6,7 +6,7 @@ if ~cfg.cache.enabled, error('eegsl:Cache:Disabled','Cache writes are disabled.'
 if cfg.cache.read_only, error('eegsl:Cache:ReadOnly','Cannot write while cache.read_only is true.'); end
 path = eegsl.common.artifact_path(cfg,kind,key);
 folder=fileparts(path); if ~isfolder(folder)&&~mkdir(folder), error('eegsl:Cache:CreateDirectory','Could not create cache directory: %s',folder); end
-cleanup_cache_temps(cfg,folder);
+eegsl.common.cleanup_cache_temps(cfg,folder);
 if isfile(path)&&~cfg.cache.overwrite, error('eegsl:Cache:Exists','Artifact already exists and overwrite is disabled: %s',path); end
 lock = eegsl.common.acquire_cache_lock(cfg,path); lock_cleanup=onCleanup(@()eegsl.common.release_cache_lock(lock)); %#ok<NASGU>
 if isfile(path)&&~cfg.cache.overwrite, error('eegsl:Cache:Exists','Artifact already exists and overwrite is disabled: %s',path); end
@@ -14,7 +14,7 @@ metadata=normalize_metadata(metadata); metadata.configuration_hash=eegsl.common.
 cache_info=struct('kind',char(kind),'key',char(key),'schema_version',cfg.cache.version, ...
     'created_utc',utc_stamp(),'matlab_version',version,'artifact_class',class(artifact), ...
     'metadata_hash',eegsl.common.content_hash(metadata)); %#ok<NASGU>
-tmp=fullfile(folder,[tempname(folder) '.tmp-' char(java.util.UUID.randomUUID()) '.mat']);
+tmp=[tempname(folder) '.tmp-' char(java.util.UUID.randomUUID()) '.mat'];
 cleanup=onCleanup(@()delete_if_exists(tmp)); %#ok<NASGU>
 try
     save(tmp,'artifact','metadata','cache_info','-mat');

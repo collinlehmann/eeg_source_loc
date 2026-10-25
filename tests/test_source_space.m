@@ -13,6 +13,6 @@ tests.metadata = isfield(info,'source_space_id') && ~isempty(info.source_space_i
 
 h = eegsl.source.electrode_density_heuristic(256,struct('min_points',3000,'max_points',6000));
 tests.density_clamped = h.target_points == 3072;
-tests.all_passed = all(structfun(@(x) logical(x),tests));
-if ~tests.all_passed, error('eegsl:Tests:SourceFailure','Source-space test failed.'); end
+assert_test_checks(tests,'test_source_space');
+tests.all_passed = true;
 end

@@ -19,6 +19,6 @@ cfg.normalization.enabled = false;
 caught = false;
 try, eegsl.normalization.build_normalization(X,cfg); catch err, caught = strcmp(err.identifier,'eegsl:Normalization:Disabled'); end
 tests.opt_in = caught;
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed, error('eegsl:Tests:NormalizationFailure','Normalization test failed.'); end
+assert_test_checks(tests,'test_normalization');
+tests.all_passed = true;
 end

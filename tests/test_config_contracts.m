@@ -27,6 +27,6 @@ try, eegsl.validate_config(struct('paradigm','task', ...
 catch err, caught = strcmp(err.identifier,'eegsl:Config:ExecutionMismatch'); end
 tests.execution_mismatch_rejected = caught;
 
-tests.all_passed = all(structfun(@(x)logical(x),tests));
-if ~tests.all_passed, error('eegsl:Tests:ConfigFailure','Configuration contract test failed.'); end
+assert_test_checks(tests,'test_config_contracts');
+tests.all_passed = true;
 end
