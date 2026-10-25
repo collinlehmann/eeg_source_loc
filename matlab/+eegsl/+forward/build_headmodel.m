@@ -31,7 +31,7 @@ elapsed = toc(t0);
 info = eegsl.common.provenance('headmodel',struct( ...
     'engine',engine,'elapsed_seconds',elapsed, ...
     'conductivity',conductivity,'mesh_id',eegsl.common.content_hash(mesh), ...
-    'headmodel_id',eegsl.common.content_hash(headmodel)));
+    'cache_keys',cache_keys(fcfg)));
 end
 
 function headmodel = call_prepare_headmodel(mesh,cfg)
@@ -68,6 +68,12 @@ end
 
 function value = get_field(s,name,default)
 if isfield(s,name), value = s.(name); else, value = default; end
+end
+function keys = cache_keys(fcfg)
+keys = struct();
+if isfield(fcfg,'cache_keys') && isstruct(fcfg.cache_keys) && ~isempty(fcfg.cache_keys)
+    keys = fcfg.cache_keys;
+end
 end
 function out = merge_struct(base,override)
 out = base;

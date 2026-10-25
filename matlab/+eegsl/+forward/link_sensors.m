@@ -36,8 +36,7 @@ end
 elapsed = toc(t0);
 info = eegsl.common.provenance('sensor_link',struct( ...
     'engine',engine,'elapsed_seconds',elapsed, ...
-    'transfer_id',eegsl.common.cache_key('transfer',headmodel,elec), ...
-    'headmodel_id',eegsl.common.content_hash(headmodel), ...
+    'cache_keys',cache_keys(fcfg), ...
     'electrode_id',eegsl.common.content_hash(elec)));
 end
 
@@ -50,6 +49,12 @@ end
 end
 function value = get_field(s,name,default)
 if isfield(s,name), value = s.(name); else, value = default; end
+end
+function keys = cache_keys(fcfg)
+keys = struct();
+if isfield(fcfg,'cache_keys') && isstruct(fcfg.cache_keys) && ~isempty(fcfg.cache_keys)
+    keys = fcfg.cache_keys;
+end
 end
 function out = merge_struct(base,override)
 out = base;

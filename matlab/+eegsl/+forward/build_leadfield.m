@@ -48,11 +48,19 @@ end
 elapsed = toc(t0);
 leadfield.orientation = orientation;
 leadfield.source_space_id = get_source_id(sourcemodel);
+keys = cache_keys(fcfg);
+if isfield(keys,'leadfield_key')
+    leadfield.leadfield_id = keys.leadfield_key;
+else
+    leadfield.leadfield_id = eegsl.common.cache_key('leadfield', ...
+        leadfield.source_space_id,orientation, ...
+        eegsl.common.content_hash(leadfield.leadfield));
+end
 info = eegsl.common.provenance('leadfield',struct( ...
     'engine',engine,'elapsed_seconds',elapsed,'orientation',orientation, ...
-    'transfer_id',eegsl.common.cache_key('transfer',linked,elec), ...
+    'cache_keys',keys, ...
     'source_space_id',leadfield.source_space_id, ...
-    'leadfield_id',eegsl.common.cache_key('leadfield',linked,elec,sourcemodel,orientation)));
+    'leadfield_id',leadfield.leadfield_id));
 end
 
 function orientation = resolve_orientation(sourcemodel,fcfg)
@@ -71,7 +79,13 @@ end
 if strcmp(orientation,'fixed'), orientation = 'surface-normal'; end
 end
 function id = get_source_id(s)
-if isfield(s,'source_space_id'), id = s.source_space_id; else, id = eegsl.common.content_hash(s); end
+if isfield(s,'source_space_id')
+    id = s.source_space_id;
+else
+    inside = [];
+    if isfield(s,'inside'), inside = s.inside; end
+    id = eegsl.common.content_hash(struct('pos',s.pos,'inside',inside));
+end
 end
 function require_fieldtrip(fcfg)
 if isfield(fcfg,'require_fieldtrip') && ~fcfg.require_fieldtrip, return; end
@@ -82,6 +96,12 @@ end
 end
 function value = get_field(s,name,default)
 if isfield(s,name), value = s.(name); else, value = default; end
+end
+function keys = cache_keys(fcfg)
+keys = struct();
+if isfield(fcfg,'cache_keys') && isstruct(fcfg.cache_keys) && ~isempty(fcfg.cache_keys)
+    keys = fcfg.cache_keys;
+end
 end
 function out = merge_struct(base,override)
 out = base;
