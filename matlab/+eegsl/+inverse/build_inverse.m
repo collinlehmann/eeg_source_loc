@@ -21,7 +21,7 @@ N = (N+N')/2;
 
 switch method
     case 'wmne'
-        [M, methodInfo] = build_wmne(L,N,cfg,leadfield);
+        [M, methodInfo] = build_wmne(L,N,cfg,leadfield,lfmeta);
     case {'eloreta','sloreta','lcmv'}
         error('eegsl:Inverse:NotImplemented', ...
             ['Method %s has an interface but no validated numerical implementation yet. ' ...
@@ -62,7 +62,7 @@ info = eegsl.common.provenance('inverse_operator',struct( ...
     'label',{operator.label}));
 end
 
-function [M, out] = build_wmne(L,N,cfg,leadfield)
+function [M, out] = build_wmne(L,N,cfg,leadfield,lfmeta)
 % Weighted minimum norm with configurable depth weighting.
 exponent = cfg.inverse.depth_exponent;
 if isempty(exponent), exponent = 0.8; end
