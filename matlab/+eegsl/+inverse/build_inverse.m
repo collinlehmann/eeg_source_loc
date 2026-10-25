@@ -64,30 +64,32 @@ columnNorm(columnNorm <= eps) = 1;
 weights = columnNorm.^(-double(exponent));
 W = diag(weights);
 LW = L*W;
-[C, subspace] = covariance_inverse(N,cfg);
+[C, subspace, T] = covariance_inverse(N,cfg);
+LT = T*LW;
 lambda = cfg.inverse.lambda;
 if isempty(lambda)
-    lambda = choose_lambda(LW,C,cfg);
+    lambda = choose_lambda(LT,cfg);
 end
-A = LW*C*LW' + lambda*eye(size(LW,1));
-M = W * LW' * C / A;
+% Whitened weighted MNE: M = W*(T*LW)' / ((T*LW)*(T*LW)' + lambda*I) * T, with T*N*T' = I on the retained subspace.
+A = LT*LT' + lambda*eye(size(LT,1));
+M = (W * LT' / A) * T;
 out = struct('lambda',lambda,'regularization',cfg.inverse.regularization, ...
     'depth_exponent',exponent,'column_weights',weights, ...
     'covariance_subspace',subspace,'method','wmne', ...
     'leadfield_components',size(L,2),'source_orientation',get_orientation(leadfield));
 end
 
-function lambda = choose_lambda(L,C,cfg)
+function lambda = choose_lambda(L,cfg)
 % Conservative dependency-free default. Explicit lambda remains preferred.
 if isfield(cfg.inverse,'lambda_default') && ~isempty(cfg.inverse.lambda_default)
     lambda = cfg.inverse.lambda_default;
 else
-    scale = trace(L*C*L')/max(1,size(L,1));
+    scale = trace(L*L')/max(1,size(L,1));
     lambda = max(eps,1e-2*max(scale,eps));
 end
 end
 
-function [C, info] = covariance_inverse(N,cfg)
+function [C, info, T] = covariance_inverse(N,cfg)
 [V,D] = eig((N+N')/2);
 e = real(diag(D));
 tol = max(1e-12,max(abs(e)) * 1e-10);
@@ -96,6 +98,7 @@ if ~any(keep)
     error('eegsl:Inverse:CovarianceRank','Noise covariance has no positive-rank subspace.');
 end
 C = V(:,keep)*diag(1./e(keep))*V(:,keep)';
+T = diag(1./sqrt(e(keep)))*V(:,keep)';
 info = struct('rank',sum(keep),'null_dimension',size(N,1)-sum(keep), ...
     'tolerance',tol);
 end
