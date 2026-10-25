@@ -33,6 +33,64 @@ legacy.baseline = [-0.2 0.2];
 [Nlegacy,legacyInfo] = eegsl.noise.estimate_noise_cov(legacy,data,[],struct());
 tests.legacy_equivalent = isequal(size(Nlegacy),[8 8]) && legacyInfo.legacy_migration.baseline;
 
+cfg.noise.baseline = [-0.2 0.2];
+caught = false;
+try
+    eegsl.noise.estimate_noise_cov(cfg,struct('data',X),[],[]);
+catch err
+    caught = strcmp(err.identifier,'eegsl:Noise:BaselineNoTime');
+end
+tests.baseline_requires_time = caught;
+
+cfg.noise.route = 'diagonal';
+cfg.noise.baseline = [];
+warning('error','eegsl:Noise:RankDeficientNoProjector');
+caught = false;
+try
+    eegsl.noise.estimate_noise_cov(cfg,struct('data',repmat((1:1500),8,1)),[],[]);
+catch err
+    caught = strcmp(err.identifier,'eegsl:Noise:RankDeficientNoProjector');
+end
+warning('on','eegsl:Noise:RankDeficientNoProjector');
+tests.rank_warning = caught;
+
+warning('error','eegsl:Noise:DiagonalTask');
+caught = false;
+try
+    cfg.noise.route = 'diagonal';
+    eegsl.noise.estimate_noise_cov(cfg,data,[],[]);
+catch err
+    caught = strcmp(err.identifier,'eegsl:Noise:DiagonalTask');
+end
+warning('on','eegsl:Noise:DiagonalTask');
+tests.task_diagonal_warning = caught;
+
+warning('error','eegsl:Noise:EmptyroomTask');
+caught = false;
+try
+    cfg.noise.route = 'emptyroom';
+    cfg.noise.emptyroom = eye(8);
+    eegsl.noise.estimate_noise_cov(cfg,data,[],[]);
+catch err
+    caught = strcmp(err.identifier,'eegsl:Noise:EmptyroomTask');
+end
+warning('on','eegsl:Noise:EmptyroomTask');
+tests.task_emptyroom_warning = caught;
+
+cfg.paradigm = 'resting';
+cfg.noise.route = 'uniform_null';
+cfg.noise.reg.method = 'loading';
+cfg.noise.reg.value = 1e-4;
+warning('error','eegsl:Noise:RegularizationAfterUniformNull');
+caught = false;
+try
+    [~,regInfo] = eegsl.noise.estimate_noise_cov(cfg,struct('data',X),lf,[]);
+catch err
+    caught = strcmp(err.identifier,'eegsl:Noise:RegularizationAfterUniformNull');
+end
+warning('on','eegsl:Noise:RegularizationAfterUniformNull');
+tests.uniform_null_regularization_warning = caught;
+
 assert_test_checks(tests,'test_noise_covariance');
 tests.all_passed = true;
 end

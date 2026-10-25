@@ -19,19 +19,37 @@ end
 [R, dataInfo] = covariance_from_data(data, cfg, route);
 [P, rankInfo] = reference_projector(cfg, size(R,1));
 R = symmetrize(P * R * P');
+rankScale = max(abs(eig(R)));
+rank_R = rank(R,cfg.noise.tol*rankScale);
+if rank_R < size(R,1) && isempty(cfg.reference.projector)
+    warning('eegsl:Noise:RankDeficientNoProjector', ...
+        ['R is rank-deficient (rank %d of %d) but no reference projector was supplied. ' ...
+         'Supply cfg.reference.projector so N and the lead field share R''s null space ' ...
+         '(spec NOISE_COVARIANCE §6).'],rank_R,size(R,1));
+end
 
 switch route
     case 'baseline'
         N = baseline_covariance(data, cfg, size(R,1), P);
         routeInfo = struct('warning','');
     case 'diagonal'
-        warning('eegsl:Noise:DiagonalResting', ...
-            'Diagonal sensor covariance is not a uniform source-level baseline and may bias resting maps.');
+        if strcmp(paradigm,'task')
+            warning('eegsl:Noise:DiagonalTask', ...
+                'route is permitted but not the default for task data (default: baseline)');
+        else
+            warning('eegsl:Noise:DiagonalResting', ...
+                'Diagonal sensor covariance is not a uniform source-level baseline and may bias resting maps.');
+        end
         N = diag(diag(R));
         routeInfo = struct('warning','Diagonal sensor covariance is not a flat source-level baseline.');
     case 'emptyroom'
-        warning('eegsl:Noise:EmptyroomResting', ...
-            'Empty-room covariance captures environmental noise but not interference from other brain sources.');
+        if strcmp(paradigm,'task')
+            warning('eegsl:Noise:EmptyroomTask', ...
+                'route is permitted but not the default for task data (default: baseline)');
+        else
+            warning('eegsl:Noise:EmptyroomResting', ...
+                'Empty-room covariance captures environmental noise but not interference from other brain sources.');
+        end
         N = emptyroom_covariance(cfg, size(R,1), P);
         routeInfo = struct('warning','Empty-room covariance omits collective brain-source interference.');
     case 'uniform_null'
@@ -49,17 +67,24 @@ switch route
         error('eegsl:Noise:Route','Unsupported noise route: %s.',route);
 end
 
+if strcmp(route,'uniform_null') && ~strcmpi(cfg.noise.reg.method,'none')
+    warning('eegsl:Noise:RegularizationAfterUniformNull', ...
+        'regularization may break the R - N >= 0 guarantee');
+end
 N = apply_regularization(symmetrize(N), cfg.noise.reg);
 N = symmetrize(P * N * P');
 dataScale = max(abs(eig(R)));
 if ~is_psd(N, cfg.noise.tol, dataScale)
     error('eegsl:Noise:NonPSD','Estimated noise covariance is not positive semidefinite.');
 end
+if strcmp(route,'uniform_null')
+    routeInfo.min_eig_ratio = min(real(eig(symmetrize(R-N))))/dataScale;
+end
 
 info = eegsl.common.provenance('noise_covariance',struct( ...
     'paradigm',paradigm,'route',route,'data',dataInfo, ...
     'reference',rankInfo,'regularization',cfg.noise.reg, ...
-    'rank',rankInfo.rank,'leadfield_id',leadfield_id(leadfield), ...
+    'rank',rankInfo.rank,'rank_R',rank_R,'leadfield_id',leadfield_id(leadfield), ...
     'headmodel_id',stiffness_key(cfg), ...
     'noise_covariance_id',eegsl.common.content_hash(N), ...
     'configuration',cfg,'legacy_migration',legacy));
@@ -107,7 +132,11 @@ end
 
 function N = baseline_covariance(data, cfg, nchan, P)
 window = cfg.noise.baseline;
-X = select_window(data,window);
+[X,hasTime] = select_window(data,window);
+if ~hasTime
+    error('eegsl:Noise:BaselineNoTime', ...
+        'The baseline route requires per-sample time information.');
+end
 if isempty(X), error('eegsl:Noise:BaselineData','No samples found in baseline window.'); end
 N = cov(double(X.'),1);
 if size(N,1) ~= nchan, error('eegsl:Noise:BaselineChannels','Baseline channel count differs from active data.'); end
@@ -134,14 +163,16 @@ end
 N = symmetrize(P*N*P');
 end
 
-function X = select_window(data, window)
-X = [];
+function [X,hasTime] = select_window(data, window)
+X = []; hasTime = false;
 if isnumeric(data), X = data; return; end
 if ~isstruct(data), return; end
 if isfield(data,'trial') && iscell(data.trial)
+    hasTime = isfield(data,'time') && iscell(data.time) && ...
+        numel(data.time) == numel(data.trial);
     for k = 1:numel(data.trial)
         trial = data.trial{k};
-        if isfield(data,'time') && iscell(data.time)
+        if hasTime
             t = data.time{k};
             if numel(t) ~= size(trial,2), error('eegsl:Noise:TimeShape','Time and trial samples differ.'); end
             keep = t >= window(1) & t <= window(2);
@@ -152,13 +183,22 @@ if isfield(data,'trial') && iscell(data.trial)
     end
 elseif isfield(data,'avg')
     if isfield(data,'time')
+        if numel(data.time) ~= size(data.avg,2), error('eegsl:Noise:TimeShape','Time and average samples differ.'); end
         keep = data.time >= window(1) & data.time <= window(2);
         X = data.avg(:,keep);
+        hasTime = true;
     else
         X = data.avg;
     end
 elseif isfield(data,'data')
-    X = data.data;
+    if isfield(data,'time')
+        if numel(data.time) ~= size(data.data,2), error('eegsl:Noise:TimeShape','Time and data samples differ.'); end
+        keep = data.time >= window(1) & data.time <= window(2);
+        X = data.data(:,keep);
+        hasTime = true;
+    else
+        X = data.data;
+    end
 end
 end
 

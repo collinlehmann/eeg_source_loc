@@ -12,5 +12,6 @@ The following remain intentionally configurable or adapter-only rather than sile
 - LCMV data-covariance versus noise-covariance policy when uniform-null noise is selected.
 - Regularization defaults and representative-window policy.
 - Causal real-time filter design, delay characterization, and online quality-monitoring thresholds.
+- Uniform-null scaling for fixed-orientation lead fields; confirm against Moiseev 2025.
 
 The implementation must expose these as configuration or explicit adapter seams. It must not claim STN-specific or GPi-versus-GPe resolution from standard T1 imaging.
