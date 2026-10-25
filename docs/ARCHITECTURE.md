@@ -13,4 +13,7 @@ The toolbox is organized as a MATLAB package rooted at `matlab/+eegsl`.
 
 All precompute functions return provenance metadata. Apply functions are deliberately pure projections or elementwise transforms and do not log, estimate covariance, or select parameters.
 
+`ProgressLogger.log` is interval-throttled, including formatted messages;
+`ProgressLogger.event` is reserved for unthrottled stage events and errors.
+
 The package is designed to run without FieldTrip or external command-line tools for unit testing. Adapters detect missing dependencies and report actionable errors.
